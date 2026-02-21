@@ -9,10 +9,12 @@ import type {
 } from "./types";
 import {
   NODE_BODY_BOTTOM_PADDING,
+  PIN_ANCHOR_INSET,
   NODE_TITLE_HEIGHT,
   PIN_ROW_HEIGHT,
   PIN_TOP_PADDING
 } from "./types";
+import { layoutTokens } from "../theme/layoutTokens";
 
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 2.5;
@@ -59,7 +61,7 @@ export function createNode(
     title: input.title ?? "Node",
     x: input.x,
     y: input.y,
-    width: input.width ?? 260,
+    width: input.width ?? layoutTokens.node.width,
     height: input.height ?? 120,
     inputPinIds: [defaultInputPin.id],
     outputPinIds: [defaultOutputPin.id]
@@ -383,9 +385,18 @@ export function getPinCenter(graph: GraphModel, pinId: string): { x: number; y: 
     return null;
   }
 
-  const x = pin.direction === "input" ? node.x : node.x + node.width;
+  const x =
+    pin.direction === "input"
+      ? node.x + PIN_ANCHOR_INSET
+      : node.x + node.width - PIN_ANCHOR_INSET;
   const y = node.y + NODE_TITLE_HEIGHT + PIN_TOP_PADDING + PIN_ROW_HEIGHT * index + PIN_ROW_HEIGHT / 2;
   return { x, y };
+}
+
+export function replaceGraphState(current: GraphModel, next: GraphModel): GraphModel {
+  const sanitized = sanitizeGraph(next);
+  rebaseIdSequences(sanitized);
+  return sanitized;
 }
 
 function computeNodeHeight(node: NodeModel): number {
@@ -407,4 +418,71 @@ function makePin(nodeId: string, direction: PinDirection, label: string): PinMod
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function sanitizeGraph(source: GraphModel): GraphModel {
+  const base = makeGraph();
+
+  const nodes = Object.fromEntries(
+    Object.entries(source.nodes).map(([id, node]) => {
+      const inputPinIds = node.inputPinIds.filter((pinId) => Boolean(source.pins[pinId]));
+      const outputPinIds = node.outputPinIds.filter((pinId) => Boolean(source.pins[pinId]));
+      const cleanNode: NodeModel = {
+        ...node,
+        inputPinIds,
+        outputPinIds,
+        height: computeNodeHeight({ ...node, inputPinIds, outputPinIds })
+      };
+      return [id, cleanNode];
+    })
+  );
+
+  const pins = Object.fromEntries(
+    Object.entries(source.pins).filter(([, pin]) => Boolean(nodes[pin.nodeId]))
+  );
+
+  const edges = Object.fromEntries(
+    Object.entries(source.edges).filter(
+      ([, edge]) => Boolean(pins[edge.fromPinId]) && Boolean(pins[edge.toPinId])
+    )
+  );
+
+  const order = source.order.filter((id) => Boolean(nodes[id]));
+  const edgeOrder = source.edgeOrder.filter((id) => Boolean(edges[id]));
+
+  return {
+    ...base,
+    nodes,
+    pins,
+    edges,
+    order,
+    edgeOrder,
+    viewport: {
+      x: source.viewport?.x ?? 0,
+      y: source.viewport?.y ?? 0,
+      zoom: clamp(source.viewport?.zoom ?? 1, MIN_ZOOM, MAX_ZOOM)
+    },
+    singleInputPolicy: source.singleInputPolicy ?? true,
+    allowSameNodeConnections: source.allowSameNodeConnections ?? false
+  };
+}
+
+function rebaseIdSequences(graph: GraphModel): void {
+  nodeSequence = Math.max(1, maxNumericSuffix(graph.nodes, "node_") + 1);
+  pinSequence = Math.max(1, maxNumericSuffix(graph.pins, "pin_") + 1);
+  edgeSequence = Math.max(1, maxNumericSuffix(graph.edges, "edge_") + 1);
+}
+
+function maxNumericSuffix(collection: Record<string, unknown>, prefix: string): number {
+  let max = 0;
+  for (const id of Object.keys(collection)) {
+    if (!id.startsWith(prefix)) {
+      continue;
+    }
+    const suffix = Number.parseInt(id.slice(prefix.length), 10);
+    if (Number.isFinite(suffix)) {
+      max = Math.max(max, suffix);
+    }
+  }
+  return max;
 }

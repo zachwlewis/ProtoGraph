@@ -5,6 +5,7 @@ import {
   deleteSelection,
   duplicateSelectedNodes,
   makeGraph,
+  replaceGraphState,
   removePin,
   setAllowSameNodeConnections,
   setSelectedEdges,
@@ -161,5 +162,75 @@ describe("graphMutations", () => {
     const result = connectPins(sameNodeAllowed, extraOutput!, sameNodeAllowed.nodes[nodeId].inputPinIds[0]);
     expect(result.success).toBe(true);
     expect(result.graph.edgeOrder).toHaveLength(1);
+  });
+
+  it("replaces graph state and sanitizes dangling references", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Sanitize" });
+    const pinId = withNode.nodes[nodeId].inputPinIds[0];
+    const malformed = {
+      ...withNode,
+      nodes: {
+        ...withNode.nodes,
+        rogue: {
+          ...withNode.nodes[nodeId],
+          id: "rogue",
+          inputPinIds: ["pin_missing"],
+          outputPinIds: []
+        }
+      },
+      order: [...withNode.order, "rogue"],
+      edges: {
+        edge_bad: {
+          id: "edge_bad",
+          fromPinId: "pin_missing",
+          toPinId: pinId,
+          color: "#fff"
+        }
+      },
+      edgeOrder: ["edge_bad"]
+    };
+
+    const replaced = replaceGraphState(base, malformed);
+
+    expect(replaced.nodes.rogue.inputPinIds).toEqual([]);
+    expect(replaced.edges.edge_bad).toBeUndefined();
+    expect(replaced.edgeOrder).toEqual([]);
+  });
+
+  it("rebases id sequences after replacing graph state", () => {
+    const base = makeGraph();
+    const [withNode] = createNode(base, { x: 0, y: 0 });
+    const imported = {
+      ...withNode,
+      nodes: {
+        node_999: {
+          ...withNode.nodes[withNode.order[0]],
+          id: "node_999",
+          inputPinIds: ["pin_1200"],
+          outputPinIds: ["pin_1201"]
+        }
+      },
+      pins: {
+        pin_1200: {
+          ...withNode.pins[withNode.nodes[withNode.order[0]].inputPinIds[0]],
+          id: "pin_1200",
+          nodeId: "node_999"
+        },
+        pin_1201: {
+          ...withNode.pins[withNode.nodes[withNode.order[0]].outputPinIds[0]],
+          id: "pin_1201",
+          nodeId: "node_999"
+        }
+      },
+      edges: {},
+      order: ["node_999"],
+      edgeOrder: []
+    };
+
+    const replaced = replaceGraphState(base, imported);
+    const [next, createdNodeId] = createNode(replaced, { x: 100, y: 100 });
+    expect(createdNodeId).toBe("node_1000");
+    expect(next.nodes[createdNodeId]).toBeDefined();
   });
 });

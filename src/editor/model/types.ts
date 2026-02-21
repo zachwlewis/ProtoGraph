@@ -55,7 +55,9 @@ export const DEFAULT_VIEWPORT: Viewport = {
   zoom: 1
 };
 
-export const NODE_TITLE_HEIGHT = 38;
-export const PIN_ROW_HEIGHT = 22;
-export const PIN_TOP_PADDING = 12;
-export const NODE_BODY_BOTTOM_PADDING = 14;
+export const NODE_TITLE_HEIGHT = layoutTokens.node.titleHeight;
+export const PIN_ROW_HEIGHT = layoutTokens.pin.rowHeight;
+export const PIN_TOP_PADDING = layoutTokens.pin.topPadding;
+export const NODE_BODY_BOTTOM_PADDING = layoutTokens.node.bodyBottomPadding;
+export const PIN_ANCHOR_INSET = layoutTokens.pin.anchorInset;
+import { layoutTokens } from "../theme/layoutTokens";

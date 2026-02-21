@@ -269,6 +269,12 @@ Make the tool practical for real usage: fast editing, local save, and screenshot
 - Export:
   - PNG export of viewport
   - PNG export of full graph bounds
+- Shared layout/theme tokens:
+  - Move node/pin spacing, typography, pin radius/anchor, and padding into shared token definitions
+  - Ensure editor rendering and exporter rendering both consume the same token source
+  - Eliminate exporter-only pixel tuning that can drift from editor visuals
+- Visual follow-up note:
+  - Evaluate edge-mounted pin style (user preference) and apply consistently to editor + export in the final polish pass
 - PWA baseline:
   - Manifest + cached app shell for offline launch
 
@@ -276,6 +282,8 @@ Make the tool practical for real usage: fast editing, local save, and screenshot
 - Reloading page restores last working graph.
 - User can export/import graph JSON and retain layout.
 - User can export PNG and get a clean screenshot-ready image.
+- Export visual parity: node/pin/wire/text layout in PNG matches editor rendering for default theme.
+- Style-change safety: changing shared node/pin spacing tokens updates both editor and PNG export consistently.
 - App opens and works with network disabled after first load.
 - E2E test covers create -> connect -> save -> reload -> export path.
 
