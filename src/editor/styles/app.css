@@ -28,9 +28,14 @@ body,
   background: var(--bg);
 }
 
+button,
+input {
+  font: inherit;
+}
+
 .app-shell {
   display: grid;
-  grid-template-columns: 220px 1fr 280px;
+  grid-template-columns: 220px 1fr 300px;
   grid-template-rows: 56px 1fr;
   grid-template-areas:
     "toolbar toolbar toolbar"
@@ -57,16 +62,20 @@ body,
   gap: 8px;
 }
 
-.toolbar button {
+.toolbar button,
+.inspector-actions button,
+.inspector-pin-row button {
   border: 1px solid #415170;
   background: #253147;
   color: var(--text);
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 6px;
   cursor: pointer;
 }
 
-.toolbar button:hover {
+.toolbar button:hover,
+.inspector-actions button:hover,
+.inspector-pin-row button:hover {
   background: #314261;
 }
 
@@ -87,10 +96,58 @@ body,
   z-index: 10;
 }
 
+.left-panel h3,
+.right-panel h3 {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .right-panel {
   grid-area: right;
   border-right: 0;
   border-left: 1px solid var(--panel-border);
+}
+
+.inspector-block {
+  display: grid;
+  gap: 10px;
+}
+
+.inspector-title {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.inspector-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.pin-list {
+  display: grid;
+  gap: 6px;
+}
+
+.inspector-pin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.inspector-pin-row button {
+  padding: 4px 8px;
+  font-size: 12px;
 }
 
 .editor-main {
@@ -121,6 +178,37 @@ body,
   transform-origin: 0 0;
 }
 
+.edge-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.edge-path {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.88;
+  pointer-events: stroke;
+}
+
+.edge-path:hover {
+  opacity: 1;
+  stroke-width: 4;
+}
+
+.edge-path.is-selected {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 3px rgba(89, 164, 255, 0.7));
+}
+
+.edge-path.is-preview {
+  pointer-events: none;
+  stroke-dasharray: 9 6;
+  opacity: 0.95;
+}
+
 .node-card {
   position: absolute;
   border: 1px solid var(--node-border);
@@ -146,10 +234,64 @@ body,
 .node-body {
   display: flex;
   justify-content: space-between;
-  padding: 14px 12px;
+  padding: 12px 10px 14px;
+  gap: 16px;
 }
 
-.pin-placeholder {
+.pin-column {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 96px;
+}
+
+.pin-column-output {
+  justify-items: end;
+}
+
+.pin-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 22px;
   font-size: 12px;
-  color: #91a2c2;
+  color: #bbcae5;
+}
+
+.pin-row-output {
+  justify-content: flex-end;
+}
+
+.pin-dot {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-block;
+  cursor: crosshair;
+  padding: 0;
+}
+
+.pin-dot.is-hover-valid {
+  outline: 2px solid #79ec8f;
+  outline-offset: 2px;
+}
+
+.pin-dot.is-hover-invalid {
+  outline: 2px solid #ff5b67;
+  outline-offset: 2px;
+}
+
+.connect-error-banner {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  border: 1px solid #8a2f3a;
+  background: rgba(88, 18, 25, 0.95);
+  color: #ffc4cc;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 30;
 }

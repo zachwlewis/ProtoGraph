@@ -4,34 +4,83 @@ import { GridBackground } from "./GridBackground";
 import { useGraphStore } from "../store/useGraphStore";
 import { NodeCard } from "../components/NodeCard";
 import { screenToWorld } from "../utils/geometry";
-import type { NodeModel } from "../model/types";
+import type { ConnectResult } from "../model/graphMutations";
+import { getPinCenter } from "../model/graphMutations";
+import type { EdgeModel, GraphModel, NodeModel, PinModel } from "../model/types";
 
 type DragState =
   | { mode: "idle" }
   | { mode: "panning"; lastClientX: number; lastClientY: number }
-  | { mode: "node-drag"; lastClientX: number; lastClientY: number };
+  | { mode: "node-drag"; lastClientX: number; lastClientY: number }
+  | { mode: "connect"; fromPinId: string; cursorWorldX: number; cursorWorldY: number };
 
 export function InfiniteCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState>({ mode: "idle" });
   const [spaceHeld, setSpaceHeld] = useState(false);
+  const [hoveredPinId, setHoveredPinId] = useState<string | null>(null);
+  const [lastConnectError, setLastConnectError] = useState<string | null>(null);
 
   const order = useGraphStore((state) => state.order);
   const nodesById = useGraphStore((state) => state.nodes);
+  const pinsById = useGraphStore((state) => state.pins);
+  const edgeOrder = useGraphStore((state) => state.edgeOrder);
+  const edgesById = useGraphStore((state) => state.edges);
   const selectedNodeIds = useGraphStore((state) => state.selectedNodeIds);
+  const selectedEdgeIds = useGraphStore((state) => state.selectedEdgeIds);
   const viewport = useGraphStore((state) => state.viewport);
+  const singleInputPolicy = useGraphStore((state) => state.singleInputPolicy);
+  const allowSameNodeConnections = useGraphStore((state) => state.allowSameNodeConnections);
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const setSelection = useGraphStore((state) => state.setSelection);
+  const setEdgeSelection = useGraphStore((state) => state.setEdgeSelection);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const panBy = useGraphStore((state) => state.panBy);
   const zoomAt = useGraphStore((state) => state.zoomAt);
   const moveSelectionBy = useGraphStore((state) => state.moveSelectionBy);
+  const connectPins = useGraphStore((state) => state.connectPins);
 
   const nodes = useMemo(
     () => order.map((id) => nodesById[id]).filter((node): node is NodeModel => node !== undefined),
     [order, nodesById]
   );
+  const edges = useMemo(
+    () => edgeOrder.map((id) => edgesById[id]).filter((edge): edge is EdgeModel => edge !== undefined),
+    [edgeOrder, edgesById]
+  );
+  const graph = useMemo<GraphModel>(
+    () => ({
+      nodes: nodesById,
+      pins: pinsById,
+      edges: edgesById,
+      order,
+      edgeOrder,
+      selectedNodeIds,
+      selectedEdgeIds,
+      viewport,
+      singleInputPolicy,
+      allowSameNodeConnections
+    }),
+    [
+      allowSameNodeConnections,
+      edgeOrder,
+      edgesById,
+      nodesById,
+      order,
+      pinsById,
+      selectedEdgeIds,
+      selectedNodeIds,
+      singleInputPolicy,
+      viewport
+    ]
+  );
+
   const selectedNodeIdsSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+  const selectedEdgeIdsSet = useMemo(() => new Set(selectedEdgeIds), [selectedEdgeIds]);
+  const hoveredPinValid = useMemo(
+    () => isHoveredPinValid(dragState, hoveredPinId, pinsById, allowSameNodeConnections),
+    [allowSameNodeConnections, dragState, hoveredPinId, pinsById]
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -62,26 +111,53 @@ export function InfiniteCanvas() {
         return;
       }
 
-      const dxScreen = event.clientX - dragState.lastClientX;
-      const dyScreen = event.clientY - dragState.lastClientY;
-
       if (dragState.mode === "panning") {
+        const dxScreen = event.clientX - dragState.lastClientX;
+        const dyScreen = event.clientY - dragState.lastClientY;
         panBy(dxScreen, dyScreen);
+        setDragState({
+          ...dragState,
+          lastClientX: event.clientX,
+          lastClientY: event.clientY
+        });
+        return;
       }
 
       if (dragState.mode === "node-drag") {
+        const dxScreen = event.clientX - dragState.lastClientX;
+        const dyScreen = event.clientY - dragState.lastClientY;
         moveSelectionBy(dxScreen / viewport.zoom, dyScreen / viewport.zoom);
+        setDragState({
+          ...dragState,
+          lastClientX: event.clientX,
+          lastClientY: event.clientY
+        });
+        return;
       }
 
-      setDragState({
-        ...dragState,
-        lastClientX: event.clientX,
-        lastClientY: event.clientY
-      });
+      if (dragState.mode === "connect") {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) {
+          return;
+        }
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+        const world = screenToWorld(localX, localY, viewport);
+        setDragState({
+          ...dragState,
+          cursorWorldX: world.x,
+          cursorWorldY: world.y
+        });
+      }
     };
 
     const onMouseUp = () => {
-      setDragState({ mode: "idle" });
+      if (dragState.mode === "connect") {
+        setDragState({ mode: "idle" });
+      }
+      if (dragState.mode !== "idle") {
+        setDragState({ mode: "idle" });
+      }
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -91,7 +167,7 @@ export function InfiniteCanvas() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [dragState, moveSelectionBy, panBy, viewport.zoom]);
+  }, [dragState, moveSelectionBy, panBy, viewport]);
 
   const startPan = useCallback((clientX: number, clientY: number) => {
     setDragState({ mode: "panning", lastClientX: clientX, lastClientY: clientY });
@@ -149,6 +225,7 @@ export function InfiniteCanvas() {
         return;
       }
       event.stopPropagation();
+      setLastConnectError(null);
 
       if (!selectedNodeIdsSet.has(nodeId)) {
         setSelection([nodeId]);
@@ -158,6 +235,79 @@ export function InfiniteCanvas() {
     },
     [selectedNodeIdsSet, setSelection]
   );
+
+  const onPinMouseDown = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>, pinId: string) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.stopPropagation();
+
+      const pin = pinsById[pinId];
+      if (!pin || pin.direction !== "output") {
+        return;
+      }
+
+      const origin = getPinCenter(graph, pinId);
+      if (!origin) {
+        return;
+      }
+
+      setLastConnectError(null);
+      setDragState({ mode: "connect", fromPinId: pinId, cursorWorldX: origin.x, cursorWorldY: origin.y });
+    },
+    [graph, pinsById]
+  );
+
+  const onPinMouseUp = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>, pinId: string) => {
+      if (event.button !== 0 || dragState.mode !== "connect") {
+        return;
+      }
+      event.stopPropagation();
+
+      const result = connectPins(dragState.fromPinId, pinId);
+      if (!result.success) {
+        setLastConnectError(connectionErrorText(result));
+      }
+      setDragState({ mode: "idle" });
+    },
+    [connectPins, dragState]
+  );
+
+  const onPinMouseEnter = useCallback((pinId: string) => {
+    setHoveredPinId(pinId);
+  }, []);
+
+  const onPinMouseLeave = useCallback((pinId: string) => {
+    setHoveredPinId((value) => (value === pinId ? null : value));
+  }, []);
+
+  const onEdgeMouseDown = useCallback(
+    (event: ReactMouseEvent<SVGPathElement>, edgeId: string) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.stopPropagation();
+      setEdgeSelection([edgeId]);
+      setLastConnectError(null);
+    },
+    [setEdgeSelection]
+  );
+
+  const previewPath = useMemo(() => {
+    if (dragState.mode !== "connect") {
+      return null;
+    }
+    const source = getPinCenter(graph, dragState.fromPinId);
+    if (!source) {
+      return null;
+    }
+    return {
+      path: makeCurve(source.x, source.y, dragState.cursorWorldX, dragState.cursorWorldY),
+      color: hoveredPinId && !hoveredPinValid ? "#ff5b67" : "#86d9ff"
+    };
+  }, [dragState, graph, hoveredPinId, hoveredPinValid]);
 
   return (
     <div
@@ -172,15 +322,101 @@ export function InfiniteCanvas() {
         className="canvas-world"
         style={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})` }}
       >
+        <svg className="edge-layer">
+          {edges.map((edge) => {
+            const from = getPinCenter(graph, edge.fromPinId);
+            const to = getPinCenter(graph, edge.toPinId);
+            if (!from || !to) {
+              return null;
+            }
+
+            const selected = selectedEdgeIdsSet.has(edge.id);
+            return (
+              <path
+                key={edge.id}
+                className={`edge-path ${selected ? "is-selected" : ""}`}
+                d={makeCurve(from.x, from.y, to.x, to.y)}
+                stroke={edge.color}
+                onMouseDown={(event) => onEdgeMouseDown(event, edge.id)}
+              />
+            );
+          })}
+
+          {previewPath ? (
+            <path className="edge-path is-preview" d={previewPath.path} stroke={previewPath.color} />
+          ) : null}
+        </svg>
+
         {nodes.map((node) => (
           <NodeCard
             key={node.id}
             node={node}
+            inputPins={node.inputPinIds
+              .map((pinId) => pinsById[pinId])
+              .filter((pin): pin is PinModel => pin !== undefined)}
+            outputPins={node.outputPinIds
+              .map((pinId) => pinsById[pinId])
+              .filter((pin): pin is PinModel => pin !== undefined)}
             selected={selectedNodeIdsSet.has(node.id)}
+            isConnecting={dragState.mode === "connect"}
+            hoveredPinId={hoveredPinId}
+            hoveredPinValid={hoveredPinValid}
             onMouseDown={onNodeMouseDown}
+            onPinMouseDown={onPinMouseDown}
+            onPinMouseUp={onPinMouseUp}
+            onPinMouseEnter={onPinMouseEnter}
+            onPinMouseLeave={onPinMouseLeave}
           />
         ))}
       </div>
+
+      {lastConnectError ? <div className="connect-error-banner">{lastConnectError}</div> : null}
     </div>
   );
+}
+
+function isHoveredPinValid(
+  dragState: DragState,
+  hoveredPinId: string | null,
+  pinsById: Record<string, PinModel>,
+  allowSameNodeConnections: boolean
+): boolean {
+  if (dragState.mode !== "connect" || !hoveredPinId) {
+    return false;
+  }
+  const source = pinsById[dragState.fromPinId];
+  const target = pinsById[hoveredPinId];
+  if (!source || !target) {
+    return false;
+  }
+  return (
+    source.direction === "output" &&
+    target.direction === "input" &&
+    (allowSameNodeConnections || source.nodeId !== target.nodeId)
+  );
+}
+
+function connectionErrorText(result: ConnectResult): string {
+  if (!result.reason) {
+    return "Unable to connect pins.";
+  }
+
+  switch (result.reason) {
+    case "direction":
+      return "Connect output pins to input pins only.";
+    case "same-node":
+      return "Same-node connections are disabled by graph rules.";
+    case "occupied":
+      return "This input already has a connection.";
+    case "duplicate":
+      return "Those pins are already connected.";
+    default:
+      return "Invalid connection target.";
+  }
+}
+
+function makeCurve(x1: number, y1: number, x2: number, y2: number): string {
+  const dx = Math.abs(x2 - x1);
+  const c = Math.max(48, dx * 0.45);
+  return `M ${x1} ${y1} C ${x1 + c} ${y1}, ${x2 - c} ${y2}, ${x2} ${y2}`;
 }
