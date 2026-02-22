@@ -22,13 +22,19 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [editingGraphId, setEditingGraphId] = useState<string | null>(null);
   const [editingGraphName, setEditingGraphName] = useState("");
+  const [inspectorNodeDraft, setInspectorNodeDraft] = useState("");
+  const [inspectorPinDrafts, setInspectorPinDrafts] = useState<Record<string, string>>({});
 
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const addPin = useGraphStore((state) => state.addPin);
   const removePin = useGraphStore((state) => state.removePin);
+  const renameNode = useGraphStore((state) => state.renameNode);
+  const renamePin = useGraphStore((state) => state.renamePin);
   const replaceGraph = useGraphStore((state) => state.replaceGraph);
   const deleteSelection = useGraphStore((state) => state.deleteSelection);
   const duplicateSelection = useGraphStore((state) => state.duplicateSelection);
+  const alignSelection = useGraphStore((state) => state.alignSelection);
+  const distributeSelection = useGraphStore((state) => state.distributeSelection);
   const viewport = useGraphStore((state) => state.viewport);
   const order = useGraphStore((state) => state.order);
   const edgeOrder = useGraphStore((state) => state.edgeOrder);
@@ -71,6 +77,23 @@ export function App() {
     return library.graphs[library.activeGraphId] ?? null;
   }, [library]);
   const activeGraphId = library?.activeGraphId ?? null;
+
+  useEffect(() => {
+    if (!selectedNode) {
+      setInspectorNodeDraft("");
+      setInspectorPinDrafts({});
+      return;
+    }
+    setInspectorNodeDraft(selectedNode.title);
+    const nextPinDrafts: Record<string, string> = {};
+    for (const pinId of [...selectedNode.inputPinIds, ...selectedNode.outputPinIds]) {
+      const pin = pins[pinId];
+      if (pin) {
+        nextPinDrafts[pinId] = pin.label;
+      }
+    }
+    setInspectorPinDrafts(nextPinDrafts);
+  }, [pins, selectedNode]);
 
   useEffect(() => {
     if (didHydrateInitial.current) {
@@ -159,7 +182,8 @@ export function App() {
   };
 
   const onExportJson = () => {
-    downloadGraphJson(graphSnapshot);
+    const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ngsketch-graph";
+    downloadGraphJson(graphSnapshot, `${exportName}.json`);
     setNotice("Exported graph JSON");
   };
 
@@ -174,8 +198,10 @@ export function App() {
       return;
     }
     try {
-      const imported = replaceGraphState(makeGraph(), await parseGraphJsonFile(file));
-      createGraphFromImport(imported, file.name.replace(/\.json$/i, "") || "Imported Graph");
+      const parsed = await parseGraphJsonFile(file);
+      const imported = replaceGraphState(makeGraph(), parsed.graph);
+      const preferredName = (parsed.name ?? file.name.replace(/\.json$/i, "").trim()) || "Imported Graph";
+      createGraphFromImport(imported, preferredName);
       setNotice("Imported graph JSON as a new graph");
     } catch {
       setNotice("Failed to import JSON");
@@ -454,6 +480,28 @@ export function App() {
     setEditingGraphName("");
   };
 
+  const commitInspectorNodeRename = (nodeId: string, value: string, fallbackTitle: string) => {
+    renameNode(nodeId, value);
+    setInspectorNodeDraft(() => {
+      const trimmed = value.trim();
+      return trimmed || fallbackTitle;
+    });
+  };
+
+  const commitInspectorPinRename = (pinId: string, value: string, fallbackLabel: string) => {
+    const pin = pins[pinId];
+    if (!pin) {
+      return;
+    }
+    renamePin(pinId, value);
+    setInspectorPinDrafts((prev) => {
+      const next = { ...prev };
+      const trimmed = value.trim();
+      next[pinId] = trimmed || fallbackLabel;
+      return next;
+    });
+  };
+
   if (!library || !activeSavedGraph) {
     return null;
   }
@@ -576,9 +624,39 @@ export function App() {
 
       <aside className="right-panel">
         <h3>Inspector</h3>
+        <h3>Layout</h3>
+        <div className="inspector-actions">
+          <button onClick={() => alignSelection("left")}>Align Left</button>
+          <button onClick={() => alignSelection("center-x")}>Align Center X</button>
+          <button onClick={() => alignSelection("right")}>Align Right</button>
+          <button onClick={() => alignSelection("top")}>Align Top</button>
+          <button onClick={() => alignSelection("center-y")}>Align Center Y</button>
+          <button onClick={() => alignSelection("bottom")}>Align Bottom</button>
+          <button onClick={() => distributeSelection("horizontal")}>Distribute Horizontal</button>
+          <button onClick={() => distributeSelection("vertical")}>Distribute Vertical</button>
+        </div>
+
         {selectedNode ? (
           <div className="inspector-block">
-            <div className="inspector-title">{selectedNode.title}</div>
+            <div className="inspector-title">Node</div>
+            <input
+              value={inspectorNodeDraft}
+              onChange={(event) => setInspectorNodeDraft(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
+              onBlur={(event) =>
+                commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title);
+                  event.currentTarget.blur();
+                } else if (event.key === "Escape") {
+                  setInspectorNodeDraft(selectedNode.title);
+                  event.currentTarget.blur();
+                }
+              }}
+            />
 
             <div className="inspector-actions">
               <button onClick={() => addPin(selectedNode.id, "input")}>Add Input Pin</button>
@@ -593,7 +671,27 @@ export function App() {
                 }
                 return (
                   <div className="inspector-pin-row" key={pin.id}>
-                    <span>{pin.direction === "input" ? "In" : "Out"}: {pin.label}</span>
+                    <span>{pin.direction === "input" ? "In" : "Out"}</span>
+                    <input
+                      value={inspectorPinDrafts[pin.id] ?? pin.label}
+                      onChange={(event) =>
+                        setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
+                      }
+                      onFocus={(event) => event.currentTarget.select()}
+                      onBlur={(event) =>
+                        commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
+                          event.currentTarget.blur();
+                        } else if (event.key === "Escape") {
+                          setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
+                          event.currentTarget.blur();
+                        }
+                      }}
+                    />
                     <button onClick={() => removePin(pin.id)}>Remove</button>
                   </div>
                 );
@@ -671,5 +769,18 @@ function pickMostRecentlyUpdatedGraphId(
 }
 
 export const __testables = {
-  pickMostRecentlyUpdatedGraphId
+  pickMostRecentlyUpdatedGraphId,
+  toFilenameBase
 };
+
+function toFilenameBase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "ngsketch-graph";
+  }
+  const safe = trimmed
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return safe || "ngsketch-graph";
+}

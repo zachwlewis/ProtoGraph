@@ -1,4 +1,5 @@
-import type { CSSProperties, MouseEvent } from "react";
+import { useEffect, useState } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import type { NodeModel, PinModel } from "../model/types";
 import { layoutTokens } from "../theme/layoutTokens";
 
@@ -15,6 +16,8 @@ type NodeCardProps = {
   onPinMouseUp: (event: MouseEvent<HTMLButtonElement>, pinId: string) => void;
   onPinMouseEnter: (pinId: string) => void;
   onPinMouseLeave: (pinId: string) => void;
+  onRenameNode: (nodeId: string, title: string) => void;
+  onRenamePin: (pinId: string, label: string) => void;
 };
 
 export function NodeCard({
@@ -29,8 +32,21 @@ export function NodeCard({
   onPinMouseDown,
   onPinMouseUp,
   onPinMouseEnter,
-  onPinMouseLeave
+  onPinMouseLeave,
+  onRenameNode,
+  onRenamePin
 }: NodeCardProps) {
+  const [editingNode, setEditingNode] = useState(false);
+  const [nodeDraft, setNodeDraft] = useState(node.title);
+  const [editingPinId, setEditingPinId] = useState<string | null>(null);
+  const [pinDraft, setPinDraft] = useState("");
+
+  useEffect(() => {
+    if (!editingNode) {
+      setNodeDraft(node.title);
+    }
+  }, [editingNode, node.title]);
+
   const style: CSSProperties & Record<`--${string}`, string> = {
     width: `${node.width}px`,
     height: `${node.height}px`,
@@ -50,8 +66,41 @@ export function NodeCard({
       className={`node-card ${selected ? "is-selected" : ""}`}
       style={style}
       onMouseDown={(event) => onMouseDown(event, node.id)}
+      onDoubleClick={(event) => event.stopPropagation()}
     >
-      <div className="node-title">{node.title}</div>
+      <div
+        className="node-title"
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          setEditingNode(true);
+        }}
+      >
+        {editingNode ? (
+          <input
+            className="inline-edit-input"
+            autoFocus
+            value={nodeDraft}
+            onChange={(event) => setNodeDraft(event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            onBlur={() => {
+              onRenameNode(node.id, nodeDraft);
+              setEditingNode(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                onRenameNode(node.id, nodeDraft);
+                setEditingNode(false);
+              } else if (event.key === "Escape") {
+                setNodeDraft(node.title);
+                setEditingNode(false);
+              }
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+          />
+        ) : (
+          node.title
+        )}
+      </div>
       <div className="node-body">
         <div className="pin-column">
           {inputPins.map((pin) => (
@@ -65,7 +114,14 @@ export function NodeCard({
                 onMouseLeave={() => onPinMouseLeave(pin.id)}
                 title={`${pin.label} (${pin.type})`}
               />
-              <span>{pin.label}</span>
+              {renderPinLabel(
+                pin,
+                editingPinId,
+                pinDraft,
+                setEditingPinId,
+                setPinDraft,
+                onRenamePin
+              )}
             </div>
           ))}
         </div>
@@ -73,7 +129,14 @@ export function NodeCard({
         <div className="pin-column pin-column-output">
           {outputPins.map((pin) => (
             <div className="pin-row pin-row-output" key={pin.id}>
-              <span>{pin.label}</span>
+              {renderPinLabel(
+                pin,
+                editingPinId,
+                pinDraft,
+                setEditingPinId,
+                setPinDraft,
+                onRenamePin
+              )}
               <button
                 className={pinClass(pin.id, isConnecting, hoveredPinId, hoveredPinValid)}
                 style={{ backgroundColor: pin.color }}
@@ -104,4 +167,52 @@ function pinClass(
     return "pin-dot";
   }
   return hoveredPinValid ? "pin-dot is-hover-valid" : "pin-dot is-hover-invalid";
+}
+
+function renderPinLabel(
+  pin: PinModel,
+  editingPinId: string | null,
+  pinDraft: string,
+  setEditingPinId: (value: string | null) => void,
+  setPinDraft: (value: string) => void,
+  onRenamePin: (pinId: string, label: string) => void
+) {
+  const isEditing = editingPinId === pin.id;
+  if (!isEditing) {
+    return (
+      <span
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          setEditingPinId(pin.id);
+          setPinDraft(pin.label);
+        }}
+      >
+        {pin.label}
+      </span>
+    );
+  }
+
+  return (
+    <input
+      className="inline-edit-input"
+      autoFocus
+      value={pinDraft}
+      onChange={(event) => setPinDraft(event.target.value)}
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={() => {
+        onRenamePin(pin.id, pinDraft);
+        setEditingPinId(null);
+      }}
+      onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Enter") {
+          onRenamePin(pin.id, pinDraft);
+          setEditingPinId(null);
+        } else if (event.key === "Escape") {
+          setPinDraft(pin.label);
+          setEditingPinId(null);
+        }
+      }}
+      onMouseDown={(event) => event.stopPropagation()}
+    />
+  );
 }
