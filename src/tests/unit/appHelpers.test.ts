@@ -50,6 +50,6 @@ describe("app helpers", () => {
   it("sanitizes graph names for export filenames", () => {
     expect(__testables.toFilenameBase("  My Cool Graph  ")).toBe("My Cool Graph");
     expect(__testables.toFilenameBase('A:B/C*D?"E<F>G|')).toBe("A B C D E F G");
-    expect(__testables.toFilenameBase("   ")).toBe("ngsketch-graph");
+    expect(__testables.toFilenameBase("   ")).toBe("ProtoGraph-graph");
   });
 });

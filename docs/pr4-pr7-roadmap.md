@@ -84,7 +84,7 @@ Implement the next feature set in four priority-ordered PRs:
 - `type SavedGraph = { id: string; name: string; updatedAt: number; graph: GraphModel; exportPrefs: ExportPrefs; themePresetId: ThemePresetId }`
 - `type GraphLibrary = { version: 2; activeGraphId: string; graphs: Record<string, SavedGraph>; order: string[]; settings: AppSettings }`
 2. New canonical storage key only:
-- `ngsketch.library.v2`
+- `protograph.library.v2`
 
 ### Tests
 1. CRUD: new/select/rename/duplicate/delete logic.
@@ -147,9 +147,9 @@ Implement the next feature set in four priority-ordered PRs:
 - Include frame (boolean)
 2. Export dropdown uses current graph’s export defaults.
 3. Export filenames:
-- ngsketch-viewport.png
-- ngsketch-full.png
-- ngsketch-framed.png when frame enabled
+- ProtoGraph-viewport.png
+- ProtoGraph-full.png
+- ProtoGraph-framed.png when frame enabled
   - Note: Include graph name in export filenames in PR7 (format TBD).
   - Note: Do not auto-use graph name as framed title; framed title behavior will be specified separately in PR7.
 4. Theme presets:

@@ -332,7 +332,7 @@ export function App() {
   }, [notice]);
 
   const onExportJson = () => {
-    const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ngsketch-graph";
+    const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ProtoGraph-graph";
     downloadGraphJson(graphSnapshot, `${exportName}.json`);
     pushNotice("Exported graph JSON", "success");
   };
@@ -359,7 +359,7 @@ export function App() {
   };
 
   const onExportPng = () => {
-    const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ngsketch";
+    const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ProtoGraph";
     const prefs = activeSavedGraph?.exportPrefs ?? DEFAULT_EXPORT_PREFS;
     exportGraphToPng(
       graphSnapshot,
@@ -1386,13 +1386,13 @@ export const __testables = {
 function toFilenameBase(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
-    return "ngsketch-graph";
+    return "ProtoGraph-graph";
   }
   const safe = trimmed
     .replace(/[\\/:*?"<>|]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return safe || "ngsketch-graph";
+  return safe || "ProtoGraph-graph";
 }
 
 function iconForNotice(intent: NoticeIntent): string {

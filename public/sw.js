@@ -1,4 +1,4 @@
-const CACHE_NAME = "ngsketch-app-v1";
+const CACHE_NAME = "protograph-app-v1";
 
 function getBaseHref() {
   const swUrl = new URL(self.location.href);

@@ -1,6 +1,6 @@
 {
-  "name": "ngsketch",
-  "short_name": "ngsketch",
+  "name": "ProtoGraph",
+  "short_name": "ProtoGraph",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#11141b",

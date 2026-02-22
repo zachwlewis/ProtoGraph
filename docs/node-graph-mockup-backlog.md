@@ -36,7 +36,7 @@ No server-side code. Must work offline.
 
 ## Proposed File Structure
 ```text
-ngsketch/
+ProtoGraph/
   docs/
     node-graph-mockup-backlog.md
   public/

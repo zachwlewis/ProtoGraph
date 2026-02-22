@@ -100,5 +100,5 @@ export const DEFAULT_EXPORT_PREFS: ExportPrefs = {
   scale: 2,
   margin: 60,
   includeFrame: false,
-  frameTitle: "ngsketch mockup"
+  frameTitle: "ProtoGraph mockup"
 };

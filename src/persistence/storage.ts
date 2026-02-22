@@ -1,6 +1,6 @@
 import type { GraphLibrary } from "../editor/model/types";
 
-const LIBRARY_STORAGE_KEY = "ngsketch.library.v2";
+const LIBRARY_STORAGE_KEY = "protograph.library.v2";
 
 export function saveLibraryToStorage(library: GraphLibrary): void {
   if (typeof window === "undefined") {

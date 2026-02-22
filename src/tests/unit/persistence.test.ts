@@ -49,7 +49,7 @@ describe("persistence storage", () => {
   it("returns null when library storage is empty or corrupted", () => {
     expect(loadLibraryFromStorage()).toBeNull();
 
-    window.localStorage.setItem("ngsketch.library.v2", "{bad-json");
+    window.localStorage.setItem("protograph.library.v2", "{bad-json");
     expect(loadLibraryFromStorage()).toBeNull();
   });
 

@@ -24,7 +24,7 @@ All notable changes to this project will be documented in this file.
   - Edge-mounted pins and denser node body spacing.
   - Crisp neutral editor wires and stronger selection styling.
   - Neon orange selected-node treatment.
-  - Framed export with transparent outside area and dedicated `ngsketch-framed.png` filename.
+  - Framed export with transparent outside area and dedicated `ProtoGraph-framed.png` filename.
 
 ### Fixed
 - Resolved React store update loop in canvas rendering path.

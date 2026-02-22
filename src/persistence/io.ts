@@ -1,6 +1,6 @@
 import type { GraphModel } from "../editor/model/types";
 
-export function downloadGraphJson(graph: GraphModel, filename = "ngsketch-graph.json"): void {
+export function downloadGraphJson(graph: GraphModel, filename = "ProtoGraph-graph.json"): void {
   const blob = new Blob([JSON.stringify(graph, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

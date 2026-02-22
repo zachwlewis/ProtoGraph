@@ -60,7 +60,7 @@ export function exportGraphToPng(
       ctx,
       metrics.outputWidth,
       metrics.outputHeight,
-      options.frameTitle ?? "ngsketch mockup",
+      options.frameTitle ?? "ProtoGraph mockup",
       theme.export.frameStroke,
       theme.export.frameTitle
     );
@@ -75,7 +75,7 @@ export function exportGraphToPng(
     if (!blob) {
       return;
     }
-    const fileBase = options?.filenameBase ?? "ngsketch";
+    const fileBase = options?.filenameBase ?? "ProtoGraph";
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
