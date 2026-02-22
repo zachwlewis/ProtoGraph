@@ -50,11 +50,18 @@ export function App() {
   const renameNode = useGraphStore((state) => state.renameNode);
   const renamePin = useGraphStore((state) => state.renamePin);
   const reorderPin = useGraphStore((state) => state.reorderPin);
-  const replaceGraph = useGraphStore((state) => state.replaceGraph);
   const deleteSelection = useGraphStore((state) => state.deleteSelection);
   const duplicateSelection = useGraphStore((state) => state.duplicateSelection);
   const alignSelection = useGraphStore((state) => state.alignSelection);
   const distributeSelection = useGraphStore((state) => state.distributeSelection);
+  const undo = useGraphStore((state) => state.undo);
+  const redo = useGraphStore((state) => state.redo);
+  const canUndo = useGraphStore((state) => state.canUndo);
+  const canRedo = useGraphStore((state) => state.canRedo);
+  const beginHistoryTransaction = useGraphStore((state) => state.beginHistoryTransaction);
+  const endHistoryTransaction = useGraphStore((state) => state.endHistoryTransaction);
+  const activateGraphContext = useGraphStore((state) => state.activateGraphContext);
+  const clearGraphHistory = useGraphStore((state) => state.clearGraphHistory);
   const viewport = useGraphStore((state) => state.viewport);
   const order = useGraphStore((state) => state.order);
   const edgeOrder = useGraphStore((state) => state.edgeOrder);
@@ -107,6 +114,7 @@ export function App() {
   useEffect(() => {
     const previousSelectedNode = lastSelectedNodeRef.current;
     if (previousSelectedNode && (!selectedNode || selectedNode.id !== previousSelectedNode.id)) {
+      beginHistoryTransaction();
       const nodeDraft = inspectorNodeDraft.trim();
       if (nodeDraft && nodeDraft !== previousSelectedNode.title) {
         renameNode(previousSelectedNode.id, nodeDraft);
@@ -123,9 +131,19 @@ export function App() {
           renamePin(pinId, trimmed);
         }
       }
+      endHistoryTransaction();
     }
     lastSelectedNodeRef.current = selectedNode;
-  }, [inspectorNodeDraft, inspectorPinDrafts, pins, renameNode, renamePin, selectedNode]);
+  }, [
+    beginHistoryTransaction,
+    endHistoryTransaction,
+    inspectorNodeDraft,
+    inspectorPinDrafts,
+    pins,
+    renameNode,
+    renamePin,
+    selectedNode
+  ]);
 
   useEffect(() => {
     if (!selectedNode) {
@@ -220,10 +238,10 @@ export function App() {
 
     const active = initial.graphs[initial.activeGraphId];
     if (active) {
-      replaceGraph(active.graph);
+      activateGraphContext(initial.activeGraphId, active.graph, true);
       pushNotice(loaded ? "Restored graph library from local storage" : "Created initial graph", "success");
     }
-  }, [replaceGraph]);
+  }, [activateGraphContext]);
 
   useEffect(() => {
     if (!library || !activeSavedGraph) {
@@ -262,7 +280,30 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const hasModifier = event.metaKey || event.ctrlKey;
+      const isRedo =
+        (hasModifier && key === "z" && event.shiftKey) ||
+        (event.ctrlKey && !event.metaKey && key === "y");
+
+      if (hasModifier && key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (isRedo) {
+        event.preventDefault();
+        redo();
         return;
       }
 
@@ -280,7 +321,7 @@ export function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [deleteSelection, duplicateSelection]);
+  }, [deleteSelection, duplicateSelection, redo, undo]);
 
   useEffect(() => {
     if (!notice) {
@@ -435,7 +476,7 @@ export function App() {
         }
       };
       const target = nextGraphs[graphId];
-      replaceGraph(target.graph);
+      activateGraphContext(target.id, target.graph, false);
       return {
         ...prev,
         activeGraphId: graphId,
@@ -472,7 +513,7 @@ export function App() {
         }
       };
 
-      replaceGraph(next);
+      activateGraphContext(graphId, next, true);
       return {
         ...prev,
         activeGraphId: graphId,
@@ -507,7 +548,7 @@ export function App() {
           themePresetId: "midnight" as const
         }
       };
-      replaceGraph(graph);
+      activateGraphContext(graphId, graph, true);
       return {
         ...prev,
         activeGraphId: graphId,
@@ -586,7 +627,7 @@ export function App() {
       if (nextOrder.length === 0) {
         const seeded = seedGraph();
         const seededId = createGraphId();
-        replaceGraph(seeded);
+        activateGraphContext(seededId, seeded, true);
         return {
           ...prev,
           activeGraphId: seededId,
@@ -607,7 +648,7 @@ export function App() {
       let nextActive = prev.activeGraphId;
       if (graphId === prev.activeGraphId) {
         nextActive = pickMostRecentlyUpdatedGraphId(nextOrder, nextGraphs) ?? nextOrder[0];
-        replaceGraph(nextGraphs[nextActive].graph);
+        activateGraphContext(nextActive, nextGraphs[nextActive].graph, false);
       }
 
       return {
@@ -617,6 +658,7 @@ export function App() {
         graphs: nextGraphs
       };
     });
+    clearGraphHistory(graphId);
     pushNotice("Deleted graph", "success");
   };
 
@@ -655,6 +697,7 @@ export function App() {
     if (row) {
       event.dataTransfer.setDragImage(row, 8, row.clientHeight / 2);
     }
+    beginHistoryTransaction();
     setDraggedPin({ nodeId, direction, index, pinId });
     setPinDropTarget({ direction, index });
   };
@@ -686,6 +729,7 @@ export function App() {
     if (!draggedPin || draggedPin.direction !== direction || draggedPin.nodeId !== nodeId) {
       return;
     }
+    endHistoryTransaction();
     setDraggedPin(null);
     setPinDropTarget(null);
   };
@@ -747,6 +791,26 @@ export function App() {
 
           <button className="icon-button" title="Import JSON" aria-label="Import JSON" onClick={onImportJsonClick}>
             <span className="material-symbols-outlined">upload_file</span>
+          </button>
+
+          <button
+            className="icon-button"
+            title="Undo (Cmd/Ctrl+Z)"
+            aria-label="Undo"
+            onClick={undo}
+            disabled={!canUndo}
+          >
+            <span className="material-symbols-outlined">undo</span>
+          </button>
+
+          <button
+            className="icon-button"
+            title="Redo (Shift+Cmd/Ctrl+Z)"
+            aria-label="Redo"
+            onClick={redo}
+            disabled={!canRedo}
+          >
+            <span className="material-symbols-outlined">redo</span>
           </button>
 
           <details className="toolbar-dropdown" ref={exportMenuRef}>
@@ -925,6 +989,7 @@ export function App() {
                           onPinHandleDragStart(selectedNode.id, "input", index, pin.id, event)
                         }
                         onDragEnd={() => {
+                          endHistoryTransaction();
                           setDraggedPin(null);
                           setPinDropTarget(null);
                         }}
@@ -1001,6 +1066,7 @@ export function App() {
                           onPinHandleDragStart(selectedNode.id, "output", index, pin.id, event)
                         }
                         onDragEnd={() => {
+                          endHistoryTransaction();
                           setDraggedPin(null);
                           setPinDropTarget(null);
                         }}
@@ -1230,6 +1296,8 @@ export function App() {
 
               <h4>Keyboard</h4>
               <ul>
+                <li><kbd>Cmd/Ctrl + Z</kbd>: undo.</li>
+                <li><kbd>Shift + Cmd/Ctrl + Z</kbd> or <kbd>Ctrl + Y</kbd>: redo.</li>
                 <li><kbd>Delete</kbd>/<kbd>Backspace</kbd>: delete current selection.</li>
                 <li><kbd>Cmd/Ctrl + D</kbd>: duplicate selected node(s).</li>
                 <li><kbd>Enter</kbd>: commit active input edit.</li>

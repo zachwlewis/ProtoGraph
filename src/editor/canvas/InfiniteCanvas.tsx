@@ -63,6 +63,8 @@ export function InfiniteCanvas({
   const connectPins = useGraphStore((state) => state.connectPins);
   const renameNode = useGraphStore((state) => state.renameNode);
   const renamePin = useGraphStore((state) => state.renamePin);
+  const beginHistoryTransaction = useGraphStore((state) => state.beginHistoryTransaction);
+  const endHistoryTransaction = useGraphStore((state) => state.endHistoryTransaction);
 
   const nodes = useMemo(
     () => order.map((id) => nodesById[id]).filter((node): node is NodeModel => node !== undefined),
@@ -286,6 +288,9 @@ export function InfiniteCanvas({
     };
 
     const onMouseUp = () => {
+      if (dragState.mode === "node-drag") {
+        endHistoryTransaction();
+      }
       if (dragState.mode === "marquee") {
         const rect: WorldRect = {
           x: Math.min(dragState.startWorldX, dragState.currentWorldX),
@@ -312,7 +317,7 @@ export function InfiniteCanvas({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [dragState, moveSelectionBy, panBy, setSelectionByMarquee, viewport]);
+  }, [dragState, endHistoryTransaction, moveSelectionBy, panBy, setSelectionByMarquee, viewport]);
 
   const startPan = useCallback((clientX: number, clientY: number) => {
     setDragState({ mode: "panning", lastClientX: clientX, lastClientY: clientY });
@@ -453,9 +458,10 @@ export function InfiniteCanvas({
         setSelection([nodeId]);
       }
 
+      beginHistoryTransaction();
       setDragState({ mode: "node-drag", lastClientX: event.clientX, lastClientY: event.clientY });
     },
-    [selectedNodeIds, selectedNodeIdsSet, setSelection]
+    [beginHistoryTransaction, selectedNodeIds, selectedNodeIdsSet, setSelection]
   );
 
   const onPinMouseDown = useCallback(
