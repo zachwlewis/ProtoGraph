@@ -10,7 +10,8 @@
   --node-bg: #1f2530;
   --node-border: #3c495e;
   --node-title: #c8d9ff;
-  --selection: #59a4ff;
+  --selection: #ff8f2d;
+  --wire-color: #c8d2e2;
 }
 
 * {
@@ -190,7 +191,7 @@ input {
 
 .edge-path {
   fill: none;
-  stroke-width: 3;
+  stroke-width: 2.4;
   stroke-linecap: round;
   opacity: 0.88;
   pointer-events: stroke;
@@ -198,12 +199,14 @@ input {
 
 .edge-path:hover {
   opacity: 1;
-  stroke-width: 4;
+  stroke-width: 3.1;
 }
 
 .edge-path.is-selected {
-  stroke-width: 4;
-  filter: drop-shadow(0 0 3px rgba(89, 164, 255, 0.7));
+  stroke-width: 3.6;
+  stroke: #f7fbff;
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(248, 252, 255, 0.9));
 }
 
 .edge-path.is-preview {
@@ -224,11 +227,17 @@ input {
 
 .node-card.is-selected {
   border-color: var(--selection);
-  box-shadow: 0 0 0 2px rgba(89, 164, 255, 0.25);
+  box-shadow:
+    0 0 0 2px rgba(255, 143, 45, 0.72),
+    0 0 22px rgba(255, 116, 0, 0.52),
+    0 0 36px rgba(255, 116, 0, 0.28);
 }
 
 .node-title {
-  padding: 10px 12px;
+  height: var(--node-title-height);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
   border-bottom: 1px solid #303a4a;
   color: var(--node-title);
   font-weight: 600;
@@ -237,15 +246,17 @@ input {
 .node-body {
   display: flex;
   justify-content: space-between;
-  padding: 12px 10px 14px;
+  padding: var(--pin-top-padding) 0 var(--node-body-bottom-padding);
   gap: 16px;
+  overflow: visible;
 }
 
 .pin-column {
   display: grid;
   align-content: start;
-  gap: 4px;
+  gap: 0;
   min-width: 96px;
+  overflow: visible;
 }
 
 .pin-column-output {
@@ -255,24 +266,40 @@ input {
 .pin-row {
   display: flex;
   align-items: center;
-  gap: 7px;
-  height: 22px;
-  font-size: 12px;
+  position: relative;
+  height: var(--pin-row-height);
+  font-size: var(--pin-font-size);
   color: #bbcae5;
+}
+
+.pin-row-input {
+  padding-left: calc(var(--pin-radius) + var(--pin-label-gap));
 }
 
 .pin-row-output {
   justify-content: flex-end;
+  padding-right: calc(var(--pin-radius) + var(--pin-label-gap));
 }
 
 .pin-dot {
-  width: 11px;
-  height: 11px;
+  width: var(--pin-diameter);
+  height: var(--pin-diameter);
   border: 0;
   border-radius: 999px;
-  display: inline-block;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: block;
   cursor: crosshair;
   padding: 0;
+}
+
+.pin-row-input .pin-dot {
+  left: calc(-1 * var(--pin-radius));
+}
+
+.pin-row-output .pin-dot {
+  right: calc(-1 * var(--pin-radius));
 }
 
 .pin-dot.is-hover-valid {

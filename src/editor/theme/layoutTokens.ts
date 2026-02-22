@@ -9,7 +9,7 @@ export const layoutTokens = {
     rowHeight: 22,
     topPadding: 12,
     radius: 5,
-    anchorInset: 10,
+    anchorInset: 0,
     labelGap: 7
   },
   text: {

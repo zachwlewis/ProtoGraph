@@ -331,12 +331,13 @@ export function InfiniteCanvas() {
             }
 
             const selected = selectedEdgeIdsSet.has(edge.id);
+            const edgePath = makeCurve(from.x, from.y, to.x, to.y);
             return (
               <path
                 key={edge.id}
                 className={`edge-path ${selected ? "is-selected" : ""}`}
-                d={makeCurve(from.x, from.y, to.x, to.y)}
-                stroke={edge.color}
+                d={edgePath}
+                stroke="var(--wire-color)"
                 onMouseDown={(event) => onEdgeMouseDown(event, edge.id)}
               />
             );

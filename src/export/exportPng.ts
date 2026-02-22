@@ -4,6 +4,10 @@ import { NODE_TITLE_HEIGHT, PIN_ANCHOR_INSET, PIN_ROW_HEIGHT, PIN_TOP_PADDING } 
 import { layoutTokens } from "../editor/theme/layoutTokens";
 
 type ExportMode = "viewport" | "full";
+type ExportOptions = {
+  framed?: boolean;
+  frameTitle?: string;
+};
 
 type Rect = {
   x: number;
@@ -12,7 +16,12 @@ type Rect = {
   height: number;
 };
 
-export function exportGraphToPng(graph: GraphModel, mode: ExportMode, viewportSize: { width: number; height: number }): void {
+export function exportGraphToPng(
+  graph: GraphModel,
+  mode: ExportMode,
+  viewportSize: { width: number; height: number },
+  options?: ExportOptions
+): void {
   const worldRect = mode === "viewport" ? viewportWorldRect(graph, viewportSize) : fullGraphWorldRect(graph);
   const padding = 60;
   const outputWidth = Math.max(320, Math.ceil(worldRect.width + padding * 2));
@@ -34,16 +43,27 @@ export function exportGraphToPng(graph: GraphModel, mode: ExportMode, viewportSi
   const offsetX = padding - worldRect.x;
   const offsetY = padding - worldRect.y;
 
-  drawBackground(ctx, outputWidth, outputHeight);
-  drawGrid(ctx, outputWidth, outputHeight, 40, "rgba(130, 150, 200, 0.15)");
-  drawEdges(ctx, graph, offsetX, offsetY);
-  drawNodes(ctx, graph, offsetX, offsetY);
+  if (options?.framed) {
+    const frame = getFrameRect(outputWidth, outputHeight);
+    clipRoundedRect(ctx, frame.x, frame.y, frame.width, frame.height, frame.radius);
+    drawBackground(ctx, outputWidth, outputHeight);
+    drawGrid(ctx, outputWidth, outputHeight, 40, "rgba(130, 150, 200, 0.15)");
+    drawEdges(ctx, graph, offsetX, offsetY);
+    drawNodes(ctx, graph, offsetX, offsetY);
+    ctx.restore();
+    drawFramePreset(ctx, outputWidth, outputHeight, options.frameTitle ?? "ngsketch mockup");
+  } else {
+    drawBackground(ctx, outputWidth, outputHeight);
+    drawGrid(ctx, outputWidth, outputHeight, 40, "rgba(130, 150, 200, 0.15)");
+    drawEdges(ctx, graph, offsetX, offsetY);
+    drawNodes(ctx, graph, offsetX, offsetY);
+  }
 
   canvas.toBlob((blob) => {
     if (!blob) {
       return;
     }
-    const fileSuffix = mode === "viewport" ? "viewport" : "full";
+    const fileSuffix = options?.framed ? "framed" : mode === "viewport" ? "viewport" : "full";
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -138,7 +158,7 @@ function drawEdges(ctx: CanvasRenderingContext2D, graph: GraphModel, offsetX: nu
     ctx.moveTo(x1, y1);
     ctx.bezierCurveTo(x1 + c, y1, x2 - c, y2, x2, y2);
     ctx.strokeStyle = edge.color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.4;
     ctx.stroke();
   }
 }
@@ -251,4 +271,65 @@ function drawRoundedRect(
   ctx.strokeStyle = stroke;
   ctx.lineWidth = 1;
   ctx.stroke();
+}
+
+function drawFramePreset(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  title: string
+): void {
+  const { x: frameX, y: frameY, width: frameW, height: frameH, radius } = getFrameRect(width, height);
+
+  ctx.beginPath();
+  ctx.moveTo(frameX + radius, frameY);
+  ctx.arcTo(frameX + frameW, frameY, frameX + frameW, frameY + frameH, radius);
+  ctx.arcTo(frameX + frameW, frameY + frameH, frameX, frameY + frameH, radius);
+  ctx.arcTo(frameX, frameY + frameH, frameX, frameY, radius);
+  ctx.arcTo(frameX, frameY, frameX + frameW, frameY, radius);
+  ctx.closePath();
+  ctx.strokeStyle = "rgba(125, 165, 220, 0.52)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(224, 237, 255, 0.93)";
+  ctx.font = `600 13px ${layoutTokens.text.family}`;
+  ctx.textBaseline = "middle";
+  ctx.fillText(title, frameX + 14, frameY + 16);
+}
+
+function getFrameRect(width: number, height: number): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  radius: number;
+} {
+  const pad = 14;
+  return {
+    x: pad,
+    y: pad,
+    width: width - pad * 2,
+    height: height - pad * 2,
+    radius: 14
+  };
+}
+
+function clipRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+  ctx.clip();
 }

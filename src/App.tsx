@@ -169,6 +169,19 @@ export function App() {
     setNotice("Exported full graph PNG");
   };
 
+  const onExportPngFramed = () => {
+    exportGraphToPng(
+      graphSnapshot,
+      "full",
+      {
+        width: window.innerWidth - 520,
+        height: window.innerHeight - 56
+      },
+      { framed: true, frameTitle: "ngsketch mockup" }
+    );
+    setNotice("Exported framed PNG");
+  };
+
   return (
     <div className="app-shell">
       <header className="toolbar">
@@ -178,6 +191,7 @@ export function App() {
           <button onClick={onImportJsonClick}>Load JSON</button>
           <button onClick={onExportPngViewport}>PNG Viewport</button>
           <button onClick={onExportPngFull}>PNG Full</button>
+          <button onClick={onExportPngFramed}>PNG Framed</button>
         </div>
         <div className="toolbar-group toolbar-hint">Drag from output pin to input pin to connect</div>
       </header>
