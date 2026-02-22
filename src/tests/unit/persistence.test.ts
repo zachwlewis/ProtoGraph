@@ -1,9 +1,16 @@
 import { createNode, makeGraph } from "../../editor/model/graphMutations";
-import { clearStoredGraph, loadGraphFromStorage, saveGraphToStorage } from "../../persistence/storage";
+import {
+  clearStoredGraph,
+  loadGraphFromStorage,
+  loadNavigationSettings,
+  saveGraphToStorage,
+  saveNavigationSettings
+} from "../../persistence/storage";
 
 describe("persistence storage", () => {
   beforeEach(() => {
     clearStoredGraph();
+    window.localStorage.clear();
   });
 
   it("saves and loads graph snapshots from localStorage", () => {
@@ -37,5 +44,28 @@ describe("persistence storage", () => {
 
     clearStoredGraph();
     expect(loadGraphFromStorage()).toBeNull();
+  });
+
+  it("saves and loads navigation settings", () => {
+    saveNavigationSettings({
+      navigationMode: "trackpad",
+      resolvedNavigationMode: "trackpad"
+    });
+
+    expect(loadNavigationSettings()).toEqual({
+      navigationMode: "trackpad",
+      resolvedNavigationMode: "trackpad"
+    });
+  });
+
+  it("returns null for missing or invalid navigation settings", () => {
+    expect(loadNavigationSettings()).toBeNull();
+    window.localStorage.setItem(
+      "ngsketch.nav-settings.v1",
+      JSON.stringify({ navigationMode: "auto", resolvedNavigationMode: null })
+    );
+    expect(loadNavigationSettings()).toBeNull();
+    window.localStorage.setItem("ngsketch.nav-settings.v1", "{oops");
+    expect(loadNavigationSettings()).toBeNull();
   });
 });

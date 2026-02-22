@@ -6,7 +6,14 @@ import { NodeCard } from "../components/NodeCard";
 import { screenToWorld } from "../utils/geometry";
 import type { ConnectResult } from "../model/graphMutations";
 import { getPinCenter } from "../model/graphMutations";
-import type { EdgeModel, GraphModel, NodeModel, PinModel } from "../model/types";
+import type {
+  EdgeModel,
+  GraphModel,
+  NavigationMode,
+  NodeModel,
+  PinModel,
+  ResolvedNavigationMode
+} from "../model/types";
 
 type DragState =
   | { mode: "idle" }
@@ -14,8 +21,19 @@ type DragState =
   | { mode: "node-drag"; lastClientX: number; lastClientY: number }
   | { mode: "connect"; fromPinId: string; cursorWorldX: number; cursorWorldY: number };
 
-export function InfiniteCanvas() {
+type InfiniteCanvasProps = {
+  navigationMode: NavigationMode;
+  resolvedNavigationMode: ResolvedNavigationMode;
+  onResolveNavigationMode: (mode: Exclude<ResolvedNavigationMode, null>) => void;
+};
+
+export function InfiniteCanvas({
+  navigationMode,
+  resolvedNavigationMode,
+  onResolveNavigationMode
+}: InfiniteCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const gestureScaleRef = useRef(1);
   const [dragState, setDragState] = useState<DragState>({ mode: "idle" });
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [hoveredPinId, setHoveredPinId] = useState<string | null>(null);
@@ -77,10 +95,95 @@ export function InfiniteCanvas() {
 
   const selectedNodeIdsSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
   const selectedEdgeIdsSet = useMemo(() => new Set(selectedEdgeIds), [selectedEdgeIds]);
+  const effectiveNavigationMode = navigationMode === "auto" ? resolvedNavigationMode : navigationMode;
   const hoveredPinValid = useMemo(
     () => isHoveredPinValid(dragState, hoveredPinId, pinsById, allowSameNodeConnections),
     [allowSameNodeConnections, dragState, hoveredPinId, pinsById]
   );
+
+  useEffect(() => {
+    const element = canvasRef.current;
+    if (!element) {
+      return;
+    }
+
+    const inCanvas = (event: Event & { target?: EventTarget | null; clientX?: number; clientY?: number }) => {
+      const target = event.target;
+      if (target instanceof Node && element.contains(target)) {
+        return true;
+      }
+      const rect = element.getBoundingClientRect();
+      const x = event.clientX;
+      const y = event.clientY;
+      return x !== undefined && y !== undefined && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
+
+    const onGestureStart = (event: Event) => {
+      const gestureEvent = event as Event & { scale?: number; clientX?: number; clientY?: number; target?: EventTarget | null };
+      if (!inCanvas(gestureEvent)) {
+        return;
+      }
+      event.preventDefault();
+      gestureScaleRef.current = gestureEvent.scale ?? 1;
+    };
+
+    const onGestureChange = (event: Event) => {
+      const gestureEvent = event as Event & {
+        scale?: number;
+        clientX?: number;
+        clientY?: number;
+        target?: EventTarget | null;
+      };
+      if (!inCanvas(gestureEvent)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const scale = gestureEvent.scale ?? 1;
+      const delta = scale / (gestureScaleRef.current || 1);
+      gestureScaleRef.current = scale;
+
+      if (!Number.isFinite(delta) || delta <= 0 || Math.abs(delta - 1) < 0.001) {
+        return;
+      }
+
+      if (navigationMode === "auto" && !resolvedNavigationMode) {
+        onResolveNavigationMode("trackpad");
+      }
+
+      const rect = element.getBoundingClientRect();
+      const cursorX = (gestureEvent.clientX ?? rect.left + rect.width * 0.5) - rect.left;
+      const cursorY = (gestureEvent.clientY ?? rect.top + rect.height * 0.5) - rect.top;
+      zoomAt(cursorX, cursorY, delta);
+    };
+
+    const onGestureEnd = (event: Event) => {
+      const gestureEvent = event as Event & { clientX?: number; clientY?: number; target?: EventTarget | null };
+      if (inCanvas(gestureEvent)) {
+        event.preventDefault();
+      }
+      gestureScaleRef.current = 1;
+    };
+
+    // Safari emits gesture events at the document/window level in some cases.
+    window.addEventListener("gesturestart", onGestureStart as EventListener, { passive: false });
+    window.addEventListener("gesturechange", onGestureChange as EventListener, { passive: false });
+    window.addEventListener("gestureend", onGestureEnd as EventListener, { passive: false });
+
+    const preventNativeWheelScrollZoom = (event: WheelEvent) => {
+      event.preventDefault();
+    };
+
+    element.addEventListener("wheel", preventNativeWheelScrollZoom, { passive: false });
+
+    return () => {
+      window.removeEventListener("gesturestart", onGestureStart as EventListener);
+      window.removeEventListener("gesturechange", onGestureChange as EventListener);
+      window.removeEventListener("gestureend", onGestureEnd as EventListener);
+      element.removeEventListener("wheel", preventNativeWheelScrollZoom);
+    };
+  }, [navigationMode, onResolveNavigationMode, resolvedNavigationMode, zoomAt]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -175,8 +278,24 @@ export function InfiniteCanvas() {
 
   const onCanvasMouseDown = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (effectiveNavigationMode === "mouse" && event.button === 2) {
+        event.preventDefault();
+        startPan(event.clientX, event.clientY);
+        return;
+      }
+
+      if (navigationMode === "auto" && !resolvedNavigationMode && event.button === 2) {
+        event.preventDefault();
+        onResolveNavigationMode("mouse");
+        startPan(event.clientX, event.clientY);
+        return;
+      }
+
       if (event.button === 1 || (spaceHeld && event.button === 0)) {
         event.preventDefault();
+        if (navigationMode === "auto" && !resolvedNavigationMode) {
+          onResolveNavigationMode("trackpad");
+        }
         startPan(event.clientX, event.clientY);
         return;
       }
@@ -185,7 +304,15 @@ export function InfiniteCanvas() {
         clearSelection();
       }
     },
-    [clearSelection, spaceHeld, startPan]
+    [
+      clearSelection,
+      effectiveNavigationMode,
+      navigationMode,
+      onResolveNavigationMode,
+      resolvedNavigationMode,
+      spaceHeld,
+      startPan
+    ]
   );
 
   const onCanvasDoubleClick = useCallback(
@@ -206,6 +333,7 @@ export function InfiniteCanvas() {
   const onCanvasWheel = useCallback(
     (event: ReactWheelEvent<HTMLDivElement>) => {
       event.preventDefault();
+      event.stopPropagation();
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) {
         return;
@@ -213,10 +341,29 @@ export function InfiniteCanvas() {
 
       const cursorX = event.clientX - rect.left;
       const cursorY = event.clientY - rect.top;
-      const direction = event.deltaY > 0 ? 0.92 : 1.08;
-      zoomAt(cursorX, cursorY, direction);
+      const isPinch = event.ctrlKey;
+
+      let mode = effectiveNavigationMode;
+      if (navigationMode === "auto" && !mode) {
+        mode = inferWheelMode(event);
+        onResolveNavigationMode(mode);
+      }
+
+      if (mode === "mouse") {
+        const direction = event.deltaY > 0 ? 0.92 : 1.08;
+        zoomAt(cursorX, cursorY, direction);
+        return;
+      }
+
+      if (isPinch) {
+        const direction = event.deltaY > 0 ? 0.94 : 1.06;
+        zoomAt(cursorX, cursorY, direction);
+        return;
+      }
+
+      panBy(-event.deltaX, -event.deltaY);
     },
-    [zoomAt]
+    [effectiveNavigationMode, navigationMode, onResolveNavigationMode, panBy, zoomAt]
   );
 
   const onNodeMouseDown = useCallback(
@@ -316,6 +463,11 @@ export function InfiniteCanvas() {
       onMouseDown={onCanvasMouseDown}
       onDoubleClick={onCanvasDoubleClick}
       onWheel={onCanvasWheel}
+      onContextMenu={(event) => {
+        if (effectiveNavigationMode === "mouse") {
+          event.preventDefault();
+        }
+      }}
     >
       <GridBackground viewport={viewport} />
       <div
@@ -331,12 +483,11 @@ export function InfiniteCanvas() {
             }
 
             const selected = selectedEdgeIdsSet.has(edge.id);
-            const edgePath = makeCurve(from.x, from.y, to.x, to.y);
             return (
               <path
                 key={edge.id}
                 className={`edge-path ${selected ? "is-selected" : ""}`}
-                d={edgePath}
+                d={makeCurve(from.x, from.y, to.x, to.y)}
                 stroke="var(--wire-color)"
                 onMouseDown={(event) => onEdgeMouseDown(event, edge.id)}
               />
@@ -420,4 +571,18 @@ function makeCurve(x1: number, y1: number, x2: number, y2: number): string {
   const dx = Math.abs(x2 - x1);
   const c = Math.max(48, dx * 0.45);
   return `M ${x1} ${y1} C ${x1 + c} ${y1}, ${x2 - c} ${y2}, ${x2} ${y2}`;
+}
+
+function inferWheelMode(event: ReactWheelEvent<HTMLDivElement>): "mouse" | "trackpad" {
+  if (event.ctrlKey) {
+    return "trackpad";
+  }
+  if (Math.abs(event.deltaX) > 0) {
+    return "trackpad";
+  }
+  const absY = Math.abs(event.deltaY);
+  if (absY >= 80 && absY % 4 === 0) {
+    return "mouse";
+  }
+  return "trackpad";
 }
