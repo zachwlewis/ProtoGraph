@@ -76,6 +76,47 @@ input {
   cursor: pointer;
 }
 
+.toolbar-dropdown {
+  position: relative;
+}
+
+.toolbar-dropdown summary {
+  list-style: none;
+  border: 1px solid #415170;
+  background: #253147;
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.toolbar-dropdown[open] summary {
+  background: #314261;
+}
+
+.toolbar-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 180px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #415170;
+  border-radius: 8px;
+  background: #1f2631;
+  z-index: 30;
+}
+
+.toolbar-menu button {
+  width: 100%;
+  text-align: left;
+}
+
 .toolbar button:hover,
 .inspector-actions button:hover,
 .inspector-pin-row button:hover {
@@ -111,6 +152,11 @@ input {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.nav-mode-hint {
+  margin: 8px 0 16px;
+  font-size: 12px;
 }
 
 .right-panel {
@@ -166,6 +212,8 @@ input {
   inset: 0;
   overflow: hidden;
   background: var(--canvas-bg);
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .grid-background {

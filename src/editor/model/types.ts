@@ -36,6 +36,9 @@ export type Viewport = {
   zoom: number;
 };
 
+export type NavigationMode = "auto" | "mouse" | "trackpad";
+export type ResolvedNavigationMode = "mouse" | "trackpad" | null;
+
 export type GraphModel = {
   nodes: Record<string, NodeModel>;
   pins: Record<string, PinModel>;

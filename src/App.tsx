@@ -1,16 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { InfiniteCanvas } from "./editor/canvas/InfiniteCanvas";
+import type { NavigationMode, ResolvedNavigationMode } from "./editor/model/types";
 import { useGraphStore } from "./editor/store/useGraphStore";
 import { exportGraphToPng } from "./export/exportPng";
 import { downloadGraphJson, parseGraphJsonFile } from "./persistence/io";
-import { loadGraphFromStorage, saveGraphToStorage } from "./persistence/storage";
+import {
+  loadGraphFromStorage,
+  loadNavigationSettings,
+  saveGraphToStorage,
+  saveNavigationSettings
+} from "./persistence/storage";
 
 export function App() {
   const didSeedInitialNode = useRef(false);
   const didRestoreGraph = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [notice, setNotice] = useState<string | null>(null);
+  const [navigationMode, setNavigationMode] = useState<NavigationMode>("auto");
+  const [resolvedNavigationMode, setResolvedNavigationMode] = useState<ResolvedNavigationMode>(null);
+
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const addPin = useGraphStore((state) => state.addPin);
   const removePin = useGraphStore((state) => state.removePin);
@@ -36,6 +46,15 @@ export function App() {
     }
     return nodes[selectedNodeIds[0]] ?? null;
   }, [nodes, selectedNodeIds]);
+
+  useEffect(() => {
+    const settings = loadNavigationSettings();
+    if (!settings) {
+      return;
+    }
+    setNavigationMode(settings.navigationMode);
+    setResolvedNavigationMode(settings.resolvedNavigationMode);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -116,6 +135,16 @@ export function App() {
   }, [graphSnapshot]);
 
   useEffect(() => {
+    if (navigationMode === "auto") {
+      return;
+    }
+    saveNavigationSettings({
+      navigationMode,
+      resolvedNavigationMode: navigationMode
+    });
+  }, [navigationMode]);
+
+  useEffect(() => {
     if (!notice) {
       return;
     }
@@ -182,16 +211,31 @@ export function App() {
     setNotice("Exported framed PNG");
   };
 
+  const onNavigationModeChange = (mode: Exclude<NavigationMode, "auto">) => {
+    setNavigationMode(mode);
+    setResolvedNavigationMode(mode);
+  };
+
+  const onResolveNavigationMode = (mode: Exclude<ResolvedNavigationMode, null>) => {
+    setNavigationMode(mode);
+    setResolvedNavigationMode(mode);
+  };
+
   return (
     <div className="app-shell">
       <header className="toolbar">
         <div className="toolbar-group">
           <button onClick={addNodeAtCenter}>Add Node</button>
-          <button onClick={onExportJson}>Save JSON</button>
-          <button onClick={onImportJsonClick}>Load JSON</button>
-          <button onClick={onExportPngViewport}>PNG Viewport</button>
-          <button onClick={onExportPngFull}>PNG Full</button>
-          <button onClick={onExportPngFramed}>PNG Framed</button>
+          <details className="toolbar-dropdown">
+            <summary>Export</summary>
+            <div className="toolbar-menu">
+              <button onClick={onExportPngViewport}>PNG Viewport</button>
+              <button onClick={onExportPngFull}>PNG Full</button>
+              <button onClick={onExportPngFramed}>PNG Framed</button>
+              <button onClick={onExportJson}>Download JSON</button>
+              <button onClick={onImportJsonClick}>Load JSON</button>
+            </div>
+          </details>
         </div>
         <div className="toolbar-group toolbar-hint">Drag from output pin to input pin to connect</div>
       </header>
@@ -205,6 +249,24 @@ export function App() {
       />
 
       <aside className="left-panel">
+        <h3>Navigation</h3>
+        <label>
+          Mode
+          <select
+            value={navigationMode === "auto" ? "" : navigationMode}
+            onChange={(event) => onNavigationModeChange(event.target.value as Exclude<NavigationMode, "auto">)}
+          >
+            <option value="" disabled>
+              Detecting from input...
+            </option>
+            <option value="mouse">Mouse</option>
+            <option value="trackpad">Trackpad</option>
+          </select>
+        </label>
+        <p className="nav-mode-hint">
+          Active: {navigationMode === "auto" ? resolvedNavigationMode ?? "(waiting for first gesture)" : navigationMode}
+        </p>
+
         <h3>Graph Rules</h3>
         <label className="toggle-row">
           <input
@@ -225,7 +287,11 @@ export function App() {
       </aside>
 
       <main className="editor-main">
-        <InfiniteCanvas />
+        <InfiniteCanvas
+          navigationMode={navigationMode}
+          resolvedNavigationMode={resolvedNavigationMode}
+          onResolveNavigationMode={onResolveNavigationMode}
+        />
       </main>
 
       <aside className="right-panel">
