@@ -11,6 +11,7 @@ import {
   makeGraph,
   moveSelectedNodesBy,
   panViewportBy,
+  replaceGraphState,
   removePin,
   setSelectedEdges,
   setSelectedNodes,
@@ -36,6 +37,7 @@ type GraphActions = {
   zoomAt: (screenX: number, screenY: number, delta: number) => void;
   setSingleInputPolicy: (value: boolean) => void;
   setAllowSameNodeConnections: (value: boolean) => void;
+  replaceGraph: (graph: GraphModel) => void;
 };
 
 export const useGraphStore = create<GraphModel & GraphActions>((set, get) => ({
@@ -73,5 +75,6 @@ export const useGraphStore = create<GraphModel & GraphActions>((set, get) => ({
   setViewport: (next) => set(setViewport(get(), next)),
   zoomAt: (screenX, screenY, delta) => set(zoomAtScreenPoint(get(), screenX, screenY, delta)),
   setSingleInputPolicy: (value) => set(setSingleInputPolicy(get(), value)),
-  setAllowSameNodeConnections: (value) => set(setAllowSameNodeConnections(get(), value))
+  setAllowSameNodeConnections: (value) => set(setAllowSameNodeConnections(get(), value)),
+  replaceGraph: (graph) => set(replaceGraphState(get(), graph))
 }));

@@ -1,5 +1,6 @@
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import type { NodeModel, PinModel } from "../model/types";
+import { layoutTokens } from "../theme/layoutTokens";
 
 type NodeCardProps = {
   node: NodeModel;
@@ -30,14 +31,24 @@ export function NodeCard({
   onPinMouseEnter,
   onPinMouseLeave
 }: NodeCardProps) {
+  const style: CSSProperties & Record<`--${string}`, string> = {
+    width: `${node.width}px`,
+    height: `${node.height}px`,
+    transform: `translate(${node.x}px, ${node.y}px)`,
+    "--node-title-height": `${layoutTokens.node.titleHeight}px`,
+    "--pin-top-padding": `${layoutTokens.pin.topPadding}px`,
+    "--node-body-bottom-padding": `${layoutTokens.node.bodyBottomPadding}px`,
+    "--pin-radius": `${layoutTokens.pin.radius}px`,
+    "--pin-diameter": `${layoutTokens.pin.radius * 2}px`,
+    "--pin-label-gap": `${layoutTokens.pin.labelGap}px`,
+    "--pin-row-height": `${layoutTokens.pin.rowHeight}px`,
+    "--pin-font-size": `${layoutTokens.text.pinSize}px`
+  };
+
   return (
     <div
       className={`node-card ${selected ? "is-selected" : ""}`}
-      style={{
-        width: node.width,
-        height: node.height,
-        transform: `translate(${node.x}px, ${node.y}px)`
-      }}
+      style={style}
       onMouseDown={(event) => onMouseDown(event, node.id)}
     >
       <div className="node-title">{node.title}</div>
