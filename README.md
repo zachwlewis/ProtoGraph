@@ -40,6 +40,24 @@ npm test
 npm run build
 ```
 
+## GitHub Pages Deployment
+- Repository must be public for GitHub Pages on GitHub Free.
+- Deployment is handled by `/Users/zachary/Documents/GitHub/ProtoGraph/.github/workflows/deploy-pages.yml`.
+- Workflow triggers on pushes to `main` and on manual dispatch.
+- CI runs `npm ci`, `npm test`, and `npm run build -- --base=/${{ github.event.repository.name }}/` before deploy.
+- In GitHub repo settings, set Pages source to `GitHub Actions`.
+- Expected project-site URL pattern: `https://<owner>.github.io/ProtoGraph/`.
+- First publish can take a few minutes after the workflow succeeds.
+- Base path is derived from repository name in CI so project-path hosting stays correct after repo transfer/fork/rename.
+
+## Verify First Live Deploy
+1. Push `main` and confirm `Deploy to GitHub Pages` workflow succeeds.
+2. Open `https://<owner>.github.io/ProtoGraph/`.
+3. Confirm there are no 404s for JS/CSS/manifest/service worker in browser devtools.
+4. Confirm the service worker scope is under `/ProtoGraph/`.
+5. Do a hard refresh, then test one offline reload.
+6. If an old service worker is still active, clear site data once and re-test.
+
 ## Core Shortcuts
 - `Delete` / `Backspace`: delete selected node/edge
 - `Ctrl/Cmd + D`: duplicate selected node(s)

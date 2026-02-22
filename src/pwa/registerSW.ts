@@ -4,7 +4,8 @@ export function registerServiceWorker(): void {
   }
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    const swUrl = new URL("sw.js", import.meta.env.BASE_URL).toString();
+    navigator.serviceWorker.register(swUrl).catch(() => {
       // Keep startup resilient if SW registration fails.
     });
   });

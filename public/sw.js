@@ -1,9 +1,21 @@
 const CACHE_NAME = "ngsketch-app-v1";
 
+function getBaseHref() {
+  const swUrl = new URL(self.location.href);
+  return swUrl.pathname.replace(/sw\.js$/, "");
+}
+
+function getPrecacheUrls() {
+  const baseHref = getBaseHref();
+  return [
+    new URL(baseHref, self.location.origin).toString(),
+    new URL(`${baseHref}index.html`, self.location.origin).toString(),
+    new URL(`${baseHref}manifest.webmanifest`, self.location.origin).toString()
+  ];
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(["/", "/index.html", "/manifest.webmanifest"]))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(getPrecacheUrls())));
   self.skipWaiting();
 });
 
