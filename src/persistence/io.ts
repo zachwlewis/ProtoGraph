@@ -10,8 +10,32 @@ export function downloadGraphJson(graph: GraphModel, filename = "ngsketch-graph.
   URL.revokeObjectURL(url);
 }
 
-export async function parseGraphJsonFile(file: File): Promise<GraphModel> {
+export type ParsedGraphJson = {
+  graph: GraphModel;
+  name: string | null;
+};
+
+export async function parseGraphJsonFile(file: File): Promise<ParsedGraphJson> {
   const text = await file.text();
-  const parsed = JSON.parse(text) as GraphModel;
-  return parsed;
+  const parsed = JSON.parse(text) as unknown;
+
+  if (isNamedGraphPayload(parsed)) {
+    return {
+      graph: parsed.graph,
+      name: parsed.name.trim() || null
+    };
+  }
+
+  return {
+    graph: parsed as GraphModel,
+    name: null
+  };
+}
+
+function isNamedGraphPayload(value: unknown): value is { graph: GraphModel; name: string } {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as { graph?: unknown; name?: unknown };
+  return typeof candidate.name === "string" && Boolean(candidate.graph);
 }

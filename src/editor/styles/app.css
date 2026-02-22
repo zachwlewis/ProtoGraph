@@ -242,6 +242,17 @@ input {
   font-size: 12px;
 }
 
+.inspector-pin-row input,
+.inspector-block input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #415170;
+  background: #253147;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
 .editor-main {
   grid-area: main;
   position: relative;
@@ -305,6 +316,13 @@ input {
   opacity: 0.95;
 }
 
+.marquee-rect {
+  fill: rgba(95, 155, 255, 0.15);
+  stroke: rgba(133, 182, 255, 0.82);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+
 .node-card {
   position: absolute;
   border: 1px solid var(--node-border);
@@ -331,6 +349,16 @@ input {
   border-bottom: 1px solid #303a4a;
   color: var(--node-title);
   font-weight: 600;
+}
+
+.inline-edit-input {
+  width: 100%;
+  border: 1px solid #5c6d87;
+  background: #1b2636;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: inherit;
 }
 
 .node-body {

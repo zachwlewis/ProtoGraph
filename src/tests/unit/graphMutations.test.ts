@@ -1,12 +1,17 @@
 import {
+  alignSelection,
   addPinToNode,
   connectPins,
   createNode,
   deleteSelection,
+  distributeSelection,
   duplicateSelectedNodes,
   makeGraph,
+  renameNode,
+  renamePin,
   replaceGraphState,
   removePin,
+  setSelectionByMarquee,
   setAllowSameNodeConnections,
   setSelectedEdges,
   setSelectedNodes,
@@ -162,6 +167,76 @@ describe("graphMutations", () => {
     const result = connectPins(sameNodeAllowed, extraOutput!, sameNodeAllowed.nodes[nodeId].inputPinIds[0]);
     expect(result.success).toBe(true);
     expect(result.graph.edgeOrder).toHaveLength(1);
+  });
+
+  it("renames nodes and pins with trimmed values", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const pinId = withNode.nodes[nodeId].inputPinIds[0];
+
+    const renamedNode = renameNode(withNode, nodeId, "  Blend  ");
+    expect(renamedNode.nodes[nodeId].title).toBe("Blend");
+
+    const renamedPin = renamePin(renamedNode, pinId, "  Source  ");
+    expect(renamedPin.pins[pinId].label).toBe("Source");
+  });
+
+  it("ignores empty or unchanged rename values", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const pinId = withNode.nodes[nodeId].inputPinIds[0];
+
+    const unchangedNode = renameNode(withNode, nodeId, "Node");
+    expect(unchangedNode).toBe(withNode);
+
+    const emptyNode = renameNode(withNode, nodeId, "   ");
+    expect(emptyNode).toBe(withNode);
+
+    const unchangedPin = renamePin(withNode, pinId, withNode.pins[pinId].label);
+    expect(unchangedPin).toBe(withNode);
+
+    const emptyPin = renamePin(withNode, pinId, "   ");
+    expect(emptyPin).toBe(withNode);
+  });
+
+  it("selects nodes by marquee with replace and add modes", () => {
+    const base = makeGraph();
+    const [withA, a] = createNode(base, { x: 0, y: 0 });
+    const [withB, b] = createNode(withA, { x: 320, y: 0 });
+
+    const replaced = setSelectionByMarquee(withB, { x: -10, y: -10, width: 260, height: 180 }, "replace");
+    expect(replaced.selectedNodeIds).toEqual([a]);
+
+    const added = setSelectionByMarquee(replaced, { x: 300, y: -10, width: 260, height: 180 }, "add");
+    expect(new Set(added.selectedNodeIds)).toEqual(new Set([a, b]));
+  });
+
+  it("aligns and distributes selected nodes", () => {
+    const base = makeGraph();
+    const [withA, a] = createNode(base, { x: 0, y: 0 });
+    const [withB, b] = createNode(withA, { x: 240, y: 40 });
+    const [withC, c] = createNode(withB, { x: 520, y: 90 });
+    const selected = setSelectedNodes(withC, [a, b, c]);
+
+    const aligned = alignSelection(selected, "top");
+    expect(aligned.nodes[a].y).toBe(0);
+    expect(aligned.nodes[b].y).toBe(0);
+    expect(aligned.nodes[c].y).toBe(0);
+
+    const distributed = distributeSelection(aligned, "horizontal");
+    expect(distributed.nodes[a].x).toBe(0);
+    expect(distributed.nodes[c].x).toBe(520);
+    expect(distributed.nodes[b].x).toBeCloseTo(260, 5);
+  });
+
+  it("does not distribute when fewer than 3 nodes are selected", () => {
+    const base = makeGraph();
+    const [withA, a] = createNode(base, { x: 0, y: 0 });
+    const [withB, b] = createNode(withA, { x: 240, y: 40 });
+    const selected = setSelectedNodes(withB, [a, b]);
+
+    const distributed = distributeSelection(selected, "horizontal");
+    expect(distributed).toBe(selected);
   });
 
   it("replaces graph state and sanitizes dangling references", () => {

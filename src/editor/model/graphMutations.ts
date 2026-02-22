@@ -30,6 +30,11 @@ export type ConnectResult = {
   edgeId?: string;
 };
 
+export type SelectionMode = "replace" | "add";
+export type AlignKind = "left" | "center-x" | "right" | "top" | "center-y" | "bottom";
+export type DistributeAxis = "horizontal" | "vertical";
+export type WorldRect = { x: number; y: number; width: number; height: number };
+
 export function makeGraph(): GraphModel {
   return {
     nodes: {},
@@ -267,6 +272,129 @@ export function removePin(graph: GraphModel, pinId: string): GraphModel {
     );
     draft.edgeOrder = draft.edgeOrder.filter((id) => Boolean(draft.edges[id]));
     draft.selectedEdgeIds = draft.selectedEdgeIds.filter((id) => Boolean(draft.edges[id]));
+  });
+}
+
+export function renameNode(graph: GraphModel, nodeId: string, title: string): GraphModel {
+  const node = graph.nodes[nodeId];
+  if (!node) {
+    return graph;
+  }
+  const nextTitle = title.trim();
+  if (!nextTitle || nextTitle === node.title) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    draft.nodes[nodeId].title = nextTitle;
+  });
+}
+
+export function renamePin(graph: GraphModel, pinId: string, label: string): GraphModel {
+  const pin = graph.pins[pinId];
+  if (!pin) {
+    return graph;
+  }
+  const nextLabel = label.trim();
+  if (!nextLabel || nextLabel === pin.label) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    draft.pins[pinId].label = nextLabel;
+  });
+}
+
+export function setSelectionByMarquee(
+  graph: GraphModel,
+  rect: WorldRect,
+  mode: SelectionMode = "replace"
+): GraphModel {
+  const minX = Math.min(rect.x, rect.x + rect.width);
+  const maxX = Math.max(rect.x, rect.x + rect.width);
+  const minY = Math.min(rect.y, rect.y + rect.height);
+  const maxY = Math.max(rect.y, rect.y + rect.height);
+
+  const selected = graph.order.filter((id) => {
+    const node = graph.nodes[id];
+    if (!node) {
+      return false;
+    }
+    const nodeMinX = node.x;
+    const nodeMaxX = node.x + node.width;
+    const nodeMinY = node.y;
+    const nodeMaxY = node.y + node.height;
+    return nodeMaxX >= minX && nodeMinX <= maxX && nodeMaxY >= minY && nodeMinY <= maxY;
+  });
+
+  return produce(graph, (draft) => {
+    const next = mode === "add" ? new Set([...draft.selectedNodeIds, ...selected]) : new Set(selected);
+    draft.selectedNodeIds = Array.from(next);
+    draft.selectedEdgeIds = [];
+  });
+}
+
+export function alignSelection(graph: GraphModel, kind: AlignKind): GraphModel {
+  const nodes = graph.selectedNodeIds.map((id) => graph.nodes[id]).filter(Boolean) as NodeModel[];
+  if (nodes.length < 2) {
+    return graph;
+  }
+
+  const left = Math.min(...nodes.map((n) => n.x));
+  const right = Math.max(...nodes.map((n) => n.x + n.width));
+  const top = Math.min(...nodes.map((n) => n.y));
+  const bottom = Math.max(...nodes.map((n) => n.y + n.height));
+  const centerX = (left + right) * 0.5;
+  const centerY = (top + bottom) * 0.5;
+
+  return produce(graph, (draft) => {
+    for (const nodeId of draft.selectedNodeIds) {
+      const node = draft.nodes[nodeId];
+      if (!node) {
+        continue;
+      }
+      if (kind === "left") {
+        node.x = left;
+      } else if (kind === "center-x") {
+        node.x = centerX - node.width * 0.5;
+      } else if (kind === "right") {
+        node.x = right - node.width;
+      } else if (kind === "top") {
+        node.y = top;
+      } else if (kind === "center-y") {
+        node.y = centerY - node.height * 0.5;
+      } else if (kind === "bottom") {
+        node.y = bottom - node.height;
+      }
+    }
+  });
+}
+
+export function distributeSelection(graph: GraphModel, axis: DistributeAxis): GraphModel {
+  const nodes = graph.selectedNodeIds.map((id) => graph.nodes[id]).filter(Boolean) as NodeModel[];
+  if (nodes.length < 3) {
+    return graph;
+  }
+
+  const sorted = [...nodes].sort((a, b) => (axis === "horizontal" ? a.x - b.x : a.y - b.y));
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const start = axis === "horizontal" ? first.x : first.y;
+  const end = axis === "horizontal" ? last.x : last.y;
+  const step = (end - start) / (sorted.length - 1);
+
+  return produce(graph, (draft) => {
+    for (let i = 1; i < sorted.length - 1; i++) {
+      const node = draft.nodes[sorted[i].id];
+      if (!node) {
+        continue;
+      }
+      if (axis === "horizontal") {
+        node.x = start + step * i;
+      } else {
+        node.y = start + step * i;
+      }
+    }
   });
 }
 

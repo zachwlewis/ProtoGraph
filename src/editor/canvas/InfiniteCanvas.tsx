@@ -4,7 +4,7 @@ import { GridBackground } from "./GridBackground";
 import { useGraphStore } from "../store/useGraphStore";
 import { NodeCard } from "../components/NodeCard";
 import { screenToWorld } from "../utils/geometry";
-import type { ConnectResult } from "../model/graphMutations";
+import type { ConnectResult, WorldRect } from "../model/graphMutations";
 import { getPinCenter } from "../model/graphMutations";
 import type {
   EdgeModel,
@@ -19,7 +19,8 @@ type DragState =
   | { mode: "idle" }
   | { mode: "panning"; lastClientX: number; lastClientY: number }
   | { mode: "node-drag"; lastClientX: number; lastClientY: number }
-  | { mode: "connect"; fromPinId: string; cursorWorldX: number; cursorWorldY: number };
+  | { mode: "connect"; fromPinId: string; cursorWorldX: number; cursorWorldY: number }
+  | { mode: "marquee"; startWorldX: number; startWorldY: number; currentWorldX: number; currentWorldY: number; append: boolean };
 
 type InfiniteCanvasProps = {
   navigationMode: NavigationMode;
@@ -51,12 +52,15 @@ export function InfiniteCanvas({
   const allowSameNodeConnections = useGraphStore((state) => state.allowSameNodeConnections);
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const setSelection = useGraphStore((state) => state.setSelection);
+  const setSelectionByMarquee = useGraphStore((state) => state.setSelectionByMarquee);
   const setEdgeSelection = useGraphStore((state) => state.setEdgeSelection);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const panBy = useGraphStore((state) => state.panBy);
   const zoomAt = useGraphStore((state) => state.zoomAt);
   const moveSelectionBy = useGraphStore((state) => state.moveSelectionBy);
   const connectPins = useGraphStore((state) => state.connectPins);
+  const renameNode = useGraphStore((state) => state.renameNode);
+  const renamePin = useGraphStore((state) => state.renamePin);
 
   const nodes = useMemo(
     () => order.map((id) => nodesById[id]).filter((node): node is NodeModel => node !== undefined),
@@ -187,6 +191,15 @@ export function InfiniteCanvas({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
       if (event.code === "Space") {
         event.preventDefault();
         setSpaceHeld(true);
@@ -251,10 +264,37 @@ export function InfiniteCanvas({
           cursorWorldX: world.x,
           cursorWorldY: world.y
         });
+        return;
+      }
+
+      if (dragState.mode === "marquee") {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) {
+          return;
+        }
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+        const world = screenToWorld(localX, localY, viewport);
+        setDragState({
+          ...dragState,
+          currentWorldX: world.x,
+          currentWorldY: world.y
+        });
       }
     };
 
     const onMouseUp = () => {
+      if (dragState.mode === "marquee") {
+        const rect: WorldRect = {
+          x: Math.min(dragState.startWorldX, dragState.currentWorldX),
+          y: Math.min(dragState.startWorldY, dragState.currentWorldY),
+          width: Math.abs(dragState.currentWorldX - dragState.startWorldX),
+          height: Math.abs(dragState.currentWorldY - dragState.startWorldY)
+        };
+        if (rect.width > 1 || rect.height > 1) {
+          setSelectionByMarquee(rect, dragState.append ? "add" : "replace");
+        }
+      }
       if (dragState.mode === "connect") {
         setDragState({ mode: "idle" });
       }
@@ -270,7 +310,7 @@ export function InfiniteCanvas({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [dragState, moveSelectionBy, panBy, viewport]);
+  }, [dragState, moveSelectionBy, panBy, setSelectionByMarquee, viewport]);
 
   const startPan = useCallback((clientX: number, clientY: number) => {
     setDragState({ mode: "panning", lastClientX: clientX, lastClientY: clientY });
@@ -300,7 +340,29 @@ export function InfiniteCanvas({
         return;
       }
 
-      if (event.button === 0) {
+      if (event.button === 0 && !spaceHeld) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) {
+          return;
+        }
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+        const world = screenToWorld(localX, localY, viewport);
+        if (!event.shiftKey) {
+          clearSelection();
+        }
+        setDragState({
+          mode: "marquee",
+          startWorldX: world.x,
+          startWorldY: world.y,
+          currentWorldX: world.x,
+          currentWorldY: world.y,
+          append: event.shiftKey
+        });
+        return;
+      }
+
+      if (event.button === 0 && !event.shiftKey) {
         clearSelection();
       }
     },
@@ -311,7 +373,8 @@ export function InfiniteCanvas({
       onResolveNavigationMode,
       resolvedNavigationMode,
       spaceHeld,
-      startPan
+      startPan,
+      viewport
     ]
   );
 
@@ -374,13 +437,23 @@ export function InfiniteCanvas({
       event.stopPropagation();
       setLastConnectError(null);
 
+      if (event.shiftKey) {
+        if (selectedNodeIdsSet.has(nodeId)) {
+          setSelection(selectedNodeIds.filter((id) => id !== nodeId));
+        } else {
+          setSelection([...selectedNodeIds, nodeId]);
+        }
+        setDragState({ mode: "idle" });
+        return;
+      }
+
       if (!selectedNodeIdsSet.has(nodeId)) {
         setSelection([nodeId]);
       }
 
       setDragState({ mode: "node-drag", lastClientX: event.clientX, lastClientY: event.clientY });
     },
-    [selectedNodeIdsSet, setSelection]
+    [selectedNodeIds, selectedNodeIdsSet, setSelection]
   );
 
   const onPinMouseDown = useCallback(
@@ -456,6 +529,19 @@ export function InfiniteCanvas({
     };
   }, [dragState, graph, hoveredPinId, hoveredPinValid]);
 
+  const marqueeRect = useMemo(() => {
+    if (dragState.mode !== "marquee") {
+      return null;
+    }
+    const rect: WorldRect = {
+      x: Math.min(dragState.startWorldX, dragState.currentWorldX),
+      y: Math.min(dragState.startWorldY, dragState.currentWorldY),
+      width: Math.abs(dragState.currentWorldX - dragState.startWorldX),
+      height: Math.abs(dragState.currentWorldY - dragState.startWorldY)
+    };
+    return rect;
+  }, [dragState]);
+
   return (
     <div
       className="canvas-root"
@@ -497,6 +583,16 @@ export function InfiniteCanvas({
           {previewPath ? (
             <path className="edge-path is-preview" d={previewPath.path} stroke={previewPath.color} />
           ) : null}
+
+          {marqueeRect ? (
+            <rect
+              className="marquee-rect"
+              x={marqueeRect.x}
+              y={marqueeRect.y}
+              width={marqueeRect.width}
+              height={marqueeRect.height}
+            />
+          ) : null}
         </svg>
 
         {nodes.map((node) => (
@@ -518,6 +614,8 @@ export function InfiniteCanvas({
             onPinMouseUp={onPinMouseUp}
             onPinMouseEnter={onPinMouseEnter}
             onPinMouseLeave={onPinMouseLeave}
+            onRenameNode={renameNode}
+            onRenamePin={renamePin}
           />
         ))}
       </div>

@@ -46,4 +46,10 @@ describe("app helpers", () => {
 
     expect(__testables.pickMostRecentlyUpdatedGraphId(["a", "b"], graphs)).toBe("b");
   });
+
+  it("sanitizes graph names for export filenames", () => {
+    expect(__testables.toFilenameBase("  My Cool Graph  ")).toBe("My Cool Graph");
+    expect(__testables.toFilenameBase('A:B/C*D?"E<F>G|')).toBe("A B C D E F G");
+    expect(__testables.toFilenameBase("   ")).toBe("ngsketch-graph");
+  });
 });
