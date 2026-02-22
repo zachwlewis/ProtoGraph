@@ -1,3 +1,5 @@
+import { layoutTokens } from "../theme/layoutTokens";
+
 export type PinDirection = "input" | "output";
 
 export type PinShape = "circle" | "diamond" | "square";
@@ -38,6 +40,14 @@ export type Viewport = {
 
 export type NavigationMode = "auto" | "mouse" | "trackpad";
 export type ResolvedNavigationMode = "mouse" | "trackpad" | null;
+export type ThemePresetId = "midnight" | "blueprint" | "slate" | "blender";
+
+export type ExportPrefs = {
+  scale: number;
+  margin: number;
+  includeFrame: boolean;
+  frameTitle: string;
+};
 
 export type GraphModel = {
   nodes: Record<string, NodeModel>;
@@ -52,6 +62,28 @@ export type GraphModel = {
   allowSameNodeConnections: boolean;
 };
 
+export type AppSettings = {
+  navigationMode: NavigationMode;
+  resolvedNavigationMode: ResolvedNavigationMode;
+};
+
+export type SavedGraph = {
+  id: string;
+  name: string;
+  updatedAt: number;
+  graph: GraphModel;
+  exportPrefs: ExportPrefs;
+  themePresetId: ThemePresetId;
+};
+
+export type GraphLibrary = {
+  version: 2;
+  activeGraphId: string;
+  graphs: Record<string, SavedGraph>;
+  order: string[];
+  settings: AppSettings;
+};
+
 export const DEFAULT_VIEWPORT: Viewport = {
   x: 0,
   y: 0,
@@ -63,4 +95,10 @@ export const PIN_ROW_HEIGHT = layoutTokens.pin.rowHeight;
 export const PIN_TOP_PADDING = layoutTokens.pin.topPadding;
 export const NODE_BODY_BOTTOM_PADDING = layoutTokens.node.bodyBottomPadding;
 export const PIN_ANCHOR_INSET = layoutTokens.pin.anchorInset;
-import { layoutTokens } from "../theme/layoutTokens";
+
+export const DEFAULT_EXPORT_PREFS: ExportPrefs = {
+  scale: 2,
+  margin: 60,
+  includeFrame: false,
+  frameTitle: "ngsketch mockup"
+};

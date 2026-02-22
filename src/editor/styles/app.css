@@ -159,6 +159,48 @@ input {
   font-size: 12px;
 }
 
+.graph-actions {
+  margin-bottom: 8px;
+}
+
+.graph-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.graph-item {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.graph-item.is-active {
+  border-color: #4f75a8;
+}
+
+.graph-open {
+  width: 100%;
+  text-align: left;
+}
+
+.graph-rename-input {
+  width: 100%;
+  border: 1px solid #415170;
+  background: #253147;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.graph-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .right-panel {
   grid-area: right;
   border-right: 0;

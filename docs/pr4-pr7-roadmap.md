@@ -150,6 +150,8 @@ Implement the next feature set in four priority-ordered PRs:
 - ngsketch-viewport.png
 - ngsketch-full.png
 - ngsketch-framed.png when frame enabled
+  - Note: Include graph name in export filenames in PR7 (format TBD).
+  - Note: Do not auto-use graph name as framed title; framed title behavior will be specified separately in PR7.
 4. Theme presets:
 - Apply to entire graph canvas/nodes/wires/text.
 - Preset selection stored with graph.

@@ -1,6 +1,7 @@
 import { connectPins, createNode, makeGraph, replaceGraphState } from "../../editor/model/graphMutations";
+import { DEFAULT_EXPORT_PREFS } from "../../editor/model/types";
 import { exportGraphToPng } from "../../export/exportPng";
-import { loadGraphFromStorage, saveGraphToStorage } from "../../persistence/storage";
+import { loadLibraryFromStorage, saveLibraryToStorage } from "../../persistence/storage";
 
 describe("PR3 workflow", () => {
   const originalCreateObjectURL = URL.createObjectURL;
@@ -41,11 +42,29 @@ describe("PR3 workflow", () => {
     const connection = connectPins(withB, withB.nodes[a].outputPinIds[0], withB.nodes[b].inputPinIds[0]);
     expect(connection.success).toBe(true);
 
-    saveGraphToStorage(connection.graph);
-    const loaded = loadGraphFromStorage();
+    saveLibraryToStorage({
+      version: 2,
+      activeGraphId: "graph_1",
+      order: ["graph_1"],
+      settings: {
+        navigationMode: "mouse",
+        resolvedNavigationMode: "mouse"
+      },
+      graphs: {
+        graph_1: {
+          id: "graph_1",
+          name: "Workflow",
+          updatedAt: Date.now(),
+          graph: connection.graph,
+          exportPrefs: { ...DEFAULT_EXPORT_PREFS },
+          themePresetId: "midnight"
+        }
+      }
+    });
+    const loaded = loadLibraryFromStorage();
     expect(loaded).toBeTruthy();
 
-    const restored = replaceGraphState(makeGraph(), loaded!);
+    const restored = replaceGraphState(makeGraph(), loaded!.graphs[loaded!.activeGraphId].graph);
     expect(restored.order.length).toBe(2);
     expect(restored.edgeOrder.length).toBe(1);
 
