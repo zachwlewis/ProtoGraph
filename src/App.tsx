@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { CSSProperties, ChangeEvent } from "react";
 import { InfiniteCanvas } from "./editor/canvas/InfiniteCanvas";
 import { createNode, makeGraph, replaceGraphState } from "./editor/model/graphMutations";
 import type {
@@ -7,10 +7,12 @@ import type {
   GraphModel,
   NavigationMode,
   ResolvedNavigationMode,
-  SavedGraph
+  SavedGraph,
+  ThemePresetId
 } from "./editor/model/types";
 import { DEFAULT_EXPORT_PREFS } from "./editor/model/types";
 import { useGraphStore } from "./editor/store/useGraphStore";
+import { getThemePreset, themePresetOrder } from "./editor/theme/themePresets";
 import { exportGraphToPng } from "./export/exportPng";
 import { downloadGraphJson, parseGraphJsonFile } from "./persistence/io";
 import { loadLibraryFromStorage, saveLibraryToStorage } from "./persistence/storage";
@@ -24,6 +26,8 @@ export function App() {
   const [editingGraphName, setEditingGraphName] = useState("");
   const [inspectorNodeDraft, setInspectorNodeDraft] = useState("");
   const [inspectorPinDrafts, setInspectorPinDrafts] = useState<Record<string, string>>({});
+  const [exportMarginDraft, setExportMarginDraft] = useState(String(DEFAULT_EXPORT_PREFS.margin));
+  const [exportFrameTitleDraft, setExportFrameTitleDraft] = useState(DEFAULT_EXPORT_PREFS.frameTitle);
 
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const addPin = useGraphStore((state) => state.addPin);
@@ -77,6 +81,14 @@ export function App() {
     return library.graphs[library.activeGraphId] ?? null;
   }, [library]);
   const activeGraphId = library?.activeGraphId ?? null;
+  const activeTheme = useMemo(
+    () => getThemePreset(activeSavedGraph?.themePresetId ?? "midnight"),
+    [activeSavedGraph?.themePresetId]
+  );
+  const appThemeStyle = useMemo(
+    () => activeTheme.cssVars as CSSProperties,
+    [activeTheme]
+  );
 
   useEffect(() => {
     if (!selectedNode) {
@@ -94,6 +106,14 @@ export function App() {
     }
     setInspectorPinDrafts(nextPinDrafts);
   }, [pins, selectedNode]);
+
+  useEffect(() => {
+    if (!activeSavedGraph) {
+      return;
+    }
+    setExportMarginDraft(String(activeSavedGraph.exportPrefs.margin));
+    setExportFrameTitleDraft(activeSavedGraph.exportPrefs.frameTitle);
+  }, [activeSavedGraph]);
 
   useEffect(() => {
     if (didHydrateInitial.current) {
@@ -208,33 +228,67 @@ export function App() {
     }
   };
 
-  const onExportPngViewport = () => {
-    exportGraphToPng(graphSnapshot, "viewport", {
-      width: window.innerWidth - 520,
-      height: window.innerHeight - 56
-    });
-    setNotice("Exported viewport PNG");
-  };
-
-  const onExportPngFull = () => {
+  const onExportPng = () => {
+    const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ngsketch";
+    const prefs = activeSavedGraph?.exportPrefs ?? DEFAULT_EXPORT_PREFS;
     exportGraphToPng(graphSnapshot, "full", {
       width: window.innerWidth - 520,
       height: window.innerHeight - 56
+    }, {
+      framed: prefs.includeFrame,
+      frameTitle: prefs.frameTitle,
+      scale: prefs.scale,
+      margin: prefs.margin,
+      filenameBase: exportName,
+      themePresetId: activeSavedGraph?.themePresetId
     });
-    setNotice("Exported full graph PNG");
+    setNotice(`Exported ${prefs.includeFrame ? "framed" : "full"} PNG`);
   };
 
-  const onExportPngFramed = () => {
-    exportGraphToPng(
-      graphSnapshot,
-      "full",
-      {
-        width: window.innerWidth - 520,
-        height: window.innerHeight - 56
-      },
-      { framed: true, frameTitle: "ngsketch mockup" }
-    );
-    setNotice("Exported framed PNG");
+  const updateActiveGraphPrefs = (updater: (current: SavedGraph["exportPrefs"]) => SavedGraph["exportPrefs"]) => {
+    setLibrary((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const active = prev.graphs[prev.activeGraphId];
+      if (!active) {
+        return prev;
+      }
+      return {
+        ...prev,
+        graphs: {
+          ...prev.graphs,
+          [active.id]: {
+            ...active,
+            exportPrefs: updater(active.exportPrefs),
+            updatedAt: Date.now()
+          }
+        }
+      };
+    });
+  };
+
+  const setActiveThemePreset = (presetId: ThemePresetId) => {
+    setLibrary((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const active = prev.graphs[prev.activeGraphId];
+      if (!active) {
+        return prev;
+      }
+      return {
+        ...prev,
+        graphs: {
+          ...prev.graphs,
+          [active.id]: {
+            ...active,
+            themePresetId: presetId,
+            updatedAt: Date.now()
+          }
+        }
+      };
+    });
   };
 
   const setNavigationMode = (mode: Exclude<NavigationMode, "auto">) => {
@@ -507,16 +561,62 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={appThemeStyle}>
       <header className="toolbar">
         <div className="toolbar-group">
           <button onClick={addNodeAtCenter}>Add Node</button>
           <details className="toolbar-dropdown">
             <summary>Export</summary>
             <div className="toolbar-menu">
-              <button onClick={onExportPngViewport}>PNG Viewport</button>
-              <button onClick={onExportPngFull}>PNG Full</button>
-              <button onClick={onExportPngFramed}>PNG Framed</button>
+              <div className="toolbar-menu-field">
+                <span className="toolbar-menu-label">Scale</span>
+                <select
+                  value={activeSavedGraph.exportPrefs.scale}
+                  onChange={(event) =>
+                    updateActiveGraphPrefs((prefs) => ({ ...prefs, scale: Number(event.target.value) }))
+                  }
+                >
+                  <option value="1">1x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                  <option value="3">3x</option>
+                </select>
+              </div>
+              <div className="toolbar-menu-field">
+                <span className="toolbar-menu-label">Margin (px)</span>
+                <input
+                  value={exportMarginDraft}
+                  onChange={(event) => setExportMarginDraft(event.target.value)}
+                  onBlur={() => {
+                    const numeric = Number(exportMarginDraft);
+                    updateActiveGraphPrefs((prefs) => ({
+                      ...prefs,
+                      margin: Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : prefs.margin
+                    }));
+                  }}
+                />
+              </div>
+              <div className="toolbar-menu-field">
+                <span className="toolbar-menu-label">Frame Title</span>
+                <input
+                  value={exportFrameTitleDraft}
+                  onChange={(event) => setExportFrameTitleDraft(event.target.value)}
+                  onBlur={() =>
+                    updateActiveGraphPrefs((prefs) => ({ ...prefs, frameTitle: exportFrameTitleDraft }))
+                  }
+                />
+              </div>
+              <label className="toggle-row toolbar-toggle-row">
+                <input
+                  type="checkbox"
+                  checked={activeSavedGraph.exportPrefs.includeFrame}
+                  onChange={(event) =>
+                    updateActiveGraphPrefs((prefs) => ({ ...prefs, includeFrame: event.target.checked }))
+                  }
+                />
+                Include frame
+              </label>
+              <button onClick={onExportPng}>Export PNG</button>
               <button onClick={onExportJson}>Download JSON</button>
               <button onClick={onImportJsonClick}>Load JSON</button>
             </div>
@@ -611,6 +711,21 @@ export function App() {
             onChange={(event) => setAllowSameNodeConnections(event.target.checked)}
           />
           Allow same-node connections
+        </label>
+
+        <h3>Theme</h3>
+        <label>
+          Preset
+          <select
+            value={activeSavedGraph.themePresetId}
+            onChange={(event) => setActiveThemePreset(event.target.value as ThemePresetId)}
+          >
+            {themePresetOrder.map((presetId) => (
+              <option key={presetId} value={presetId}>
+                {getThemePreset(presetId).label}
+              </option>
+            ))}
+          </select>
         </label>
       </aside>
 
