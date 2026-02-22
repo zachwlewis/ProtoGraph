@@ -5,23 +5,34 @@ Offline-first web app for quickly mocking up node graph screenshots.
 ## Current Features
 
 - Infinite canvas with pan/zoom and grid
-- Add node from toolbar or double-click
-- Drag/select nodes
-- Node pins (inputs/outputs), edge connections, edge selection/delete
-- Graph rules:
-  - Single input connection policy
+- Node graph editing:
+  - Add nodes from toolbar or double-click
+  - Drag, multi-select, marquee select
+  - Connect wires, select/delete edges
+  - Inline node title + pin label editing
+  - Pin add/remove/reorder from inspector
+- Layout helpers:
+  - Align left/center/right/top/middle/bottom
+  - Distribute horizontally/vertically
+- Per-graph rules and preferences:
+  - Single-input connection policy
   - Allow/disallow same-node connections
-- Inspector pin controls:
-  - Add input/output pins
-  - Remove pins
-- Persistence:
-  - Autosave to localStorage
-  - Restore previous draft on reload
-  - Save JSON / Load JSON
+  - Per-graph export settings and theme preset
+- Multi-graph local library:
+  - Create/switch/duplicate/delete graphs
+  - Per-graph autosave in localStorage
+  - JSON import creates a new graph entry
+  - JSON export for active graph
 - Export:
   - PNG viewport
   - PNG full graph
   - PNG framed (transparent outside frame)
+- Themes:
+  - midnight, blueprint, slate, blender
+- Undo/redo for core graph edits:
+  - Per-graph, session-only history
+  - Drag/reorder gesture coalescing
+  - Toolbar buttons and keyboard shortcuts
 - Offline baseline:
   - PWA manifest + service worker app-shell caching
 
@@ -66,13 +77,17 @@ npm run build
 
 ## Core Shortcuts
 
+- `Cmd/Ctrl + Z`: undo
+- `Shift + Cmd/Ctrl + Z` or `Ctrl + Y`: redo
 - `Delete` / `Backspace`: delete selected node/edge
 - `Ctrl/Cmd + D`: duplicate selected node(s)
-- `Space + Drag`: pan canvas
-- `Mouse Wheel`: zoom at cursor
+- `Shift + Click`: toggle node in selection
+- `Space + Drag`: pan fallback
+- Mouse mode: `Mouse Wheel` zoom, right-drag pan
+- Trackpad mode: two-finger pan, pinch zoom
 
 ## Known Limitations
 
-- Node/pin text editing is not implemented yet (titles and pin labels are currently fixed by creation/mutation flows).
-- No marquee selection/alignment helpers yet.
-- Selected wire glow uses browser-dependent SVG filter rendering and may look slightly different between browsers.
+- Data is local-only (no sync/collaboration/server backend).
+- Undo/redo is session-only and scoped to core graph content edits (graph library operations, app settings, and viewport changes are excluded).
+- Service worker updates may require one hard refresh or clearing site data when switching between old/new cached versions.
