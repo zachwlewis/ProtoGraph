@@ -275,6 +275,44 @@ export function removePin(graph: GraphModel, pinId: string): GraphModel {
   });
 }
 
+export function reorderPinInNode(
+  graph: GraphModel,
+  nodeId: string,
+  direction: PinDirection,
+  fromIndex: number,
+  toIndex: number
+): GraphModel {
+  const node = graph.nodes[nodeId];
+  if (!node) {
+    return graph;
+  }
+
+  const list = direction === "input" ? node.inputPinIds : node.outputPinIds;
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= list.length ||
+    toIndex >= list.length ||
+    fromIndex === toIndex
+  ) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    const targetNode = draft.nodes[nodeId];
+    if (!targetNode) {
+      return;
+    }
+    const targetList = direction === "input" ? targetNode.inputPinIds : targetNode.outputPinIds;
+    const [moved] = targetList.splice(fromIndex, 1);
+    if (!moved) {
+      return;
+    }
+    targetList.splice(toIndex, 0, moved);
+    targetNode.height = computeNodeHeight(targetNode);
+  });
+}
+
 export function renameNode(graph: GraphModel, nodeId: string, title: string): GraphModel {
   const node = graph.nodes[nodeId];
   if (!node) {

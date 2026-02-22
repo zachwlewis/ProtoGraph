@@ -23,6 +23,7 @@ import {
   renamePin,
   replaceGraphState,
   removePin,
+  reorderPinInNode,
   setSelectionByMarquee,
   setSelectedEdges,
   setSelectedNodes,
@@ -36,6 +37,7 @@ type GraphActions = {
   addNodeAt: (x: number, y: number, title?: string) => string;
   addPin: (nodeId: string, direction: PinDirection, label?: string) => string | null;
   removePin: (pinId: string) => void;
+  reorderPin: (nodeId: string, direction: PinDirection, fromIndex: number, toIndex: number) => void;
   renameNode: (nodeId: string, title: string) => void;
   renamePin: (pinId: string, label: string) => void;
   connectPins: (fromPinId: string, toPinId: string) => ConnectResult;
@@ -72,6 +74,8 @@ export const useGraphStore = create<GraphModel & GraphActions>((set, get) => ({
   },
 
   removePin: (pinId) => set(removePin(get(), pinId)),
+  reorderPin: (nodeId, direction, fromIndex, toIndex) =>
+    set(reorderPinInNode(get(), nodeId, direction, fromIndex, toIndex)),
   renameNode: (nodeId, title) => set(renameNode(get(), nodeId, title)),
   renamePin: (pinId, label) => set(renamePin(get(), pinId, label)),
 

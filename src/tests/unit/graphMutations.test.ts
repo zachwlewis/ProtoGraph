@@ -11,6 +11,7 @@ import {
   renamePin,
   replaceGraphState,
   removePin,
+  reorderPinInNode,
   setSelectionByMarquee,
   setAllowSameNodeConnections,
   setSelectedEdges,
@@ -237,6 +238,28 @@ describe("graphMutations", () => {
 
     const distributed = distributeSelection(selected, "horizontal");
     expect(distributed).toBe(selected);
+  });
+
+  it("reorders pins within the same node and direction", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const [withInputA] = addPinToNode(withNode, nodeId, "input", "A");
+    const [withInputB] = addPinToNode(withInputA, nodeId, "input", "B");
+    const before = withInputB.nodes[nodeId].inputPinIds.slice();
+
+    const reordered = reorderPinInNode(withInputB, nodeId, "input", 0, 2);
+    const after = reordered.nodes[nodeId].inputPinIds;
+
+    expect(after).toHaveLength(before.length);
+    expect(new Set(after)).toEqual(new Set(before));
+    expect(after[2]).toBe(before[0]);
+  });
+
+  it("no-ops reorder with invalid indexes", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const result = reorderPinInNode(withNode, nodeId, "input", -1, 3);
+    expect(result).toBe(withNode);
   });
 
   it("replaces graph state and sanitizes dangling references", () => {

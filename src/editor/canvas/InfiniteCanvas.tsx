@@ -26,12 +26,14 @@ type InfiniteCanvasProps = {
   navigationMode: NavigationMode;
   resolvedNavigationMode: ResolvedNavigationMode;
   onResolveNavigationMode: (mode: Exclude<ResolvedNavigationMode, null>) => void;
+  onConnectError: (message: string) => void;
 };
 
 export function InfiniteCanvas({
   navigationMode,
   resolvedNavigationMode,
-  onResolveNavigationMode
+  onResolveNavigationMode,
+  onConnectError
 }: InfiniteCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const gestureScaleRef = useRef(1);
@@ -488,11 +490,13 @@ export function InfiniteCanvas({
 
       const result = connectPins(dragState.fromPinId, pinId);
       if (!result.success) {
-        setLastConnectError(connectionErrorText(result));
+        const message = connectionErrorText(result);
+        setLastConnectError(message);
+        onConnectError(message);
       }
       setDragState({ mode: "idle" });
     },
-    [connectPins, dragState]
+    [connectPins, dragState, onConnectError]
   );
 
   const onPinMouseEnter = useCallback((pinId: string) => {
@@ -619,8 +623,6 @@ export function InfiniteCanvas({
           />
         ))}
       </div>
-
-      {lastConnectError ? <div className="connect-error-banner">{lastConnectError}</div> : null}
     </div>
   );
 }
