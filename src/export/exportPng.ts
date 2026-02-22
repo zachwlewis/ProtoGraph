@@ -1,12 +1,17 @@
 import { getPinCenter } from "../editor/model/graphMutations";
-import type { GraphModel, NodeModel } from "../editor/model/types";
+import type { GraphModel, NodeModel, ThemePresetId } from "../editor/model/types";
 import { NODE_TITLE_HEIGHT, PIN_ANCHOR_INSET, PIN_ROW_HEIGHT, PIN_TOP_PADDING } from "../editor/model/types";
 import { layoutTokens } from "../editor/theme/layoutTokens";
+import { getThemePreset } from "../editor/theme/themePresets";
 
 type ExportMode = "viewport" | "full";
 type ExportOptions = {
   framed?: boolean;
   frameTitle?: string;
+  scale?: number;
+  margin?: number;
+  filenameBase?: string;
+  themePresetId?: ThemePresetId;
 };
 
 type Rect = {
@@ -23,16 +28,16 @@ export function exportGraphToPng(
   options?: ExportOptions
 ): void {
   const worldRect = mode === "viewport" ? viewportWorldRect(graph, viewportSize) : fullGraphWorldRect(graph);
-  const padding = 60;
-  const outputWidth = Math.max(320, Math.ceil(worldRect.width + padding * 2));
-  const outputHeight = Math.max(220, Math.ceil(worldRect.height + padding * 2));
-  const scale = window.devicePixelRatio > 1 ? 2 : 1;
+  const margin = options?.margin ?? 60;
+  const scale = options?.scale ?? (window.devicePixelRatio > 1 ? 2 : 1);
+  const theme = getThemePreset(options?.themePresetId ?? "midnight");
+  const metrics = computeOutputMetrics(worldRect, margin);
 
   const canvas = document.createElement("canvas");
-  canvas.width = Math.floor(outputWidth * scale);
-  canvas.height = Math.floor(outputHeight * scale);
-  canvas.style.width = `${outputWidth}px`;
-  canvas.style.height = `${outputHeight}px`;
+  canvas.width = Math.floor(metrics.outputWidth * scale);
+  canvas.height = Math.floor(metrics.outputHeight * scale);
+  canvas.style.width = `${metrics.outputWidth}px`;
+  canvas.style.height = `${metrics.outputHeight}px`;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) {
@@ -40,37 +45,65 @@ export function exportGraphToPng(
   }
   ctx.scale(scale, scale);
 
-  const offsetX = padding - worldRect.x;
-  const offsetY = padding - worldRect.y;
+  const offsetX = metrics.offsetX;
+  const offsetY = metrics.offsetY;
 
   if (options?.framed) {
-    const frame = getFrameRect(outputWidth, outputHeight);
+    const frame = getFrameRect(metrics.outputWidth, metrics.outputHeight);
     clipRoundedRect(ctx, frame.x, frame.y, frame.width, frame.height, frame.radius);
-    drawBackground(ctx, outputWidth, outputHeight);
-    drawGrid(ctx, outputWidth, outputHeight, 40, "rgba(130, 150, 200, 0.15)");
-    drawEdges(ctx, graph, offsetX, offsetY);
-    drawNodes(ctx, graph, offsetX, offsetY);
+    drawBackground(ctx, metrics.outputWidth, metrics.outputHeight, theme.export.canvasBg);
+    drawGrid(ctx, metrics.outputWidth, metrics.outputHeight, 40, theme.export.grid);
+    drawEdges(ctx, graph, offsetX, offsetY, theme.export.wire);
+    drawNodes(ctx, graph, offsetX, offsetY, theme);
     ctx.restore();
-    drawFramePreset(ctx, outputWidth, outputHeight, options.frameTitle ?? "ngsketch mockup");
+    drawFramePreset(
+      ctx,
+      metrics.outputWidth,
+      metrics.outputHeight,
+      options.frameTitle ?? "ngsketch mockup",
+      theme.export.frameStroke,
+      theme.export.frameTitle
+    );
   } else {
-    drawBackground(ctx, outputWidth, outputHeight);
-    drawGrid(ctx, outputWidth, outputHeight, 40, "rgba(130, 150, 200, 0.15)");
-    drawEdges(ctx, graph, offsetX, offsetY);
-    drawNodes(ctx, graph, offsetX, offsetY);
+    drawBackground(ctx, metrics.outputWidth, metrics.outputHeight, theme.export.canvasBg);
+    drawGrid(ctx, metrics.outputWidth, metrics.outputHeight, 40, theme.export.grid);
+    drawEdges(ctx, graph, offsetX, offsetY, theme.export.wire);
+    drawNodes(ctx, graph, offsetX, offsetY, theme);
   }
 
   canvas.toBlob((blob) => {
     if (!blob) {
       return;
     }
-    const fileSuffix = options?.framed ? "framed" : mode === "viewport" ? "viewport" : "full";
+    const fileBase = options?.filenameBase ?? "ngsketch";
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `ngsketch-${fileSuffix}.png`;
+    anchor.download = resolvePngFilename(fileBase, mode, Boolean(options?.framed));
     anchor.click();
     URL.revokeObjectURL(url);
   }, "image/png");
+}
+
+function resolvePngFilename(base: string, mode: ExportMode, framed: boolean): string {
+  const fileSuffix = framed ? "framed" : mode === "viewport" ? "viewport" : "full";
+  return `${base}-${fileSuffix}.png`;
+}
+
+function computeOutputMetrics(worldRect: Rect, margin: number): {
+  outputWidth: number;
+  outputHeight: number;
+  offsetX: number;
+  offsetY: number;
+} {
+  const outputWidth = Math.max(320, Math.ceil(worldRect.width + margin * 2));
+  const outputHeight = Math.max(220, Math.ceil(worldRect.height + margin * 2));
+  return {
+    outputWidth,
+    outputHeight,
+    offsetX: margin - worldRect.x,
+    offsetY: margin - worldRect.y
+  };
 }
 
 function viewportWorldRect(graph: GraphModel, viewportSize: { width: number; height: number }): Rect {
@@ -105,8 +138,8 @@ function fullGraphWorldRect(graph: GraphModel): Rect {
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-  ctx.fillStyle = "#0f1218";
+function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number, color: string): void {
+  ctx.fillStyle = color;
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -135,7 +168,13 @@ function drawGrid(
   }
 }
 
-function drawEdges(ctx: CanvasRenderingContext2D, graph: GraphModel, offsetX: number, offsetY: number): void {
+function drawEdges(
+  ctx: CanvasRenderingContext2D,
+  graph: GraphModel,
+  offsetX: number,
+  offsetY: number,
+  wireColor: string
+): void {
   for (const edgeId of graph.edgeOrder) {
     const edge = graph.edges[edgeId];
     if (!edge) {
@@ -157,13 +196,19 @@ function drawEdges(ctx: CanvasRenderingContext2D, graph: GraphModel, offsetX: nu
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.bezierCurveTo(x1 + c, y1, x2 - c, y2, x2, y2);
-    ctx.strokeStyle = edge.color;
+    ctx.strokeStyle = wireColor;
     ctx.lineWidth = 2.4;
     ctx.stroke();
   }
 }
 
-function drawNodes(ctx: CanvasRenderingContext2D, graph: GraphModel, offsetX: number, offsetY: number): void {
+function drawNodes(
+  ctx: CanvasRenderingContext2D,
+  graph: GraphModel,
+  offsetX: number,
+  offsetY: number,
+  theme: ReturnType<typeof getThemePreset>
+): void {
   for (const nodeId of graph.order) {
     const node = graph.nodes[nodeId];
     if (!node) {
@@ -180,23 +225,23 @@ function drawNodes(ctx: CanvasRenderingContext2D, graph: GraphModel, offsetX: nu
       node.width,
       node.height,
       layoutTokens.node.borderRadius,
-      layoutTokens.colors.nodeFill,
-      layoutTokens.colors.nodeStroke
+      theme.export.nodeFill,
+      theme.export.nodeStroke
     );
 
-    ctx.fillStyle = layoutTokens.colors.title;
+    ctx.fillStyle = theme.export.nodeTitle;
     ctx.font = `${layoutTokens.text.titleWeight} ${layoutTokens.text.titleSize}px ${layoutTokens.text.family}`;
     ctx.textBaseline = "middle";
     ctx.fillText(node.title, x + 12, y + NODE_TITLE_HEIGHT / 2 + 1);
 
-    ctx.strokeStyle = layoutTokens.colors.divider;
+    ctx.strokeStyle = theme.export.divider;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y + NODE_TITLE_HEIGHT);
     ctx.lineTo(x + node.width, y + NODE_TITLE_HEIGHT);
     ctx.stroke();
 
-    drawNodePins(ctx, graph, node, x, y);
+    drawNodePins(ctx, graph, node, x, y, theme.export.pinLabel);
   }
 }
 
@@ -205,7 +250,8 @@ function drawNodePins(
   graph: GraphModel,
   node: NodeModel,
   x: number,
-  y: number
+  y: number,
+  pinLabelColor: string
 ): void {
   ctx.font = `${layoutTokens.text.pinWeight} ${layoutTokens.text.pinSize}px ${layoutTokens.text.family}`;
   ctx.textBaseline = "middle";
@@ -225,7 +271,7 @@ function drawNodePins(
     ctx.fillStyle = pin.color;
     ctx.fill();
 
-    ctx.fillStyle = layoutTokens.colors.pinLabel;
+    ctx.fillStyle = pinLabelColor;
     ctx.fillText(pin.label, cx + pinRadius + labelGap, cy);
   }
 
@@ -243,7 +289,7 @@ function drawNodePins(
     ctx.fill();
 
     const labelWidth = ctx.measureText(pin.label).width;
-    ctx.fillStyle = layoutTokens.colors.pinLabel;
+    ctx.fillStyle = pinLabelColor;
     ctx.fillText(pin.label, cx - pinRadius - labelGap - labelWidth, cy);
   }
 }
@@ -277,7 +323,9 @@ function drawFramePreset(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  title: string
+  title: string,
+  strokeColor: string,
+  titleColor: string
 ): void {
   const { x: frameX, y: frameY, width: frameW, height: frameH, radius } = getFrameRect(width, height);
 
@@ -288,11 +336,11 @@ function drawFramePreset(
   ctx.arcTo(frameX, frameY + frameH, frameX, frameY, radius);
   ctx.arcTo(frameX, frameY, frameX + frameW, frameY, radius);
   ctx.closePath();
-  ctx.strokeStyle = "rgba(125, 165, 220, 0.52)";
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.fillStyle = "rgba(224, 237, 255, 0.93)";
+  ctx.fillStyle = titleColor;
   ctx.font = `600 13px ${layoutTokens.text.family}`;
   ctx.textBaseline = "middle";
   ctx.fillText(title, frameX + 14, frameY + 16);
@@ -333,3 +381,8 @@ function clipRoundedRect(
   ctx.closePath();
   ctx.clip();
 }
+
+export const __testables = {
+  resolvePngFilename,
+  computeOutputMetrics
+};

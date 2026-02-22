@@ -10,6 +10,9 @@
   --node-bg: #1f2530;
   --node-border: #3c495e;
   --node-title: #c8d9ff;
+  --node-divider: #303a4a;
+  --pin-label: #bbcae5;
+  --toolbar-bg: #1f2631;
   --selection: #ff8f2d;
   --wire-color: #c8d2e2;
 }
@@ -34,6 +37,10 @@ input {
   font: inherit;
 }
 
+select {
+  font: inherit;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 220px 1fr 300px;
@@ -52,8 +59,8 @@ input {
   justify-content: space-between;
   gap: 10px;
   padding: 0 16px;
-  border-bottom: 1px solid #3b4960;
-  background: #1f2631;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--toolbar-bg);
   position: relative;
   z-index: 20;
 }
@@ -68,8 +75,8 @@ input {
 .toolbar button,
 .inspector-actions button,
 .inspector-pin-row button {
-  border: 1px solid #415170;
-  background: #253147;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
   color: var(--text);
   padding: 7px 10px;
   border-radius: 6px;
@@ -82,8 +89,8 @@ input {
 
 .toolbar-dropdown summary {
   list-style: none;
-  border: 1px solid #415170;
-  background: #253147;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
   color: var(--text);
   padding: 7px 10px;
   border-radius: 6px;
@@ -95,20 +102,20 @@ input {
 }
 
 .toolbar-dropdown[open] summary {
-  background: #314261;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .toolbar-menu {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  width: 180px;
+  width: 240px;
   display: grid;
   gap: 6px;
   padding: 8px;
-  border: 1px solid #415170;
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
-  background: #1f2631;
+  background: var(--toolbar-bg);
   z-index: 30;
 }
 
@@ -117,10 +124,54 @@ input {
   text-align: left;
 }
 
+.toolbar-menu-field {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.toolbar-menu-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.toolbar-menu input,
+.toolbar-menu select {
+  width: 100%;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.toolbar-menu input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+}
+
+.toolbar-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+.toolbar-toggle-row input {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
 .toolbar button:hover,
 .inspector-actions button:hover,
 .inspector-pin-row button:hover {
-  background: #314261;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .toolbar-hint {
@@ -159,6 +210,17 @@ input {
   font-size: 12px;
 }
 
+.left-panel select {
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 10px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
 .graph-actions {
   margin-bottom: 8px;
 }
@@ -189,8 +251,8 @@ input {
 
 .graph-rename-input {
   width: 100%;
-  border: 1px solid #415170;
-  background: #253147;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
   color: var(--text);
   border-radius: 6px;
   padding: 6px 8px;
@@ -246,8 +308,8 @@ input {
 .inspector-block input {
   width: 100%;
   min-width: 0;
-  border: 1px solid #415170;
-  background: #253147;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
   color: var(--text);
   border-radius: 6px;
   padding: 5px 8px;
@@ -346,7 +408,7 @@ input {
   padding: 0 12px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #303a4a;
+  border-bottom: 1px solid var(--node-divider);
   color: var(--node-title);
   font-weight: 600;
 }
@@ -387,7 +449,7 @@ input {
   position: relative;
   height: var(--pin-row-height);
   font-size: var(--pin-font-size);
-  color: #bbcae5;
+  color: var(--pin-label);
 }
 
 .pin-row-input {
