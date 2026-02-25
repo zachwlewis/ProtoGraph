@@ -52,4 +52,65 @@ describe("app helpers", () => {
     expect(__testables.toFilenameBase('A:B/C*D?"E<F>G|')).toBe("A B C D E F G");
     expect(__testables.toFilenameBase("   ")).toBe("ProtoGraph-graph");
   });
+
+  it("resolves imported graph metadata with fallbacks", () => {
+    expect(
+      __testables.resolveImportedGraphMeta(
+        {
+          graph: {
+            nodes: {},
+            pins: {},
+            edges: {},
+            order: [],
+            edgeOrder: [],
+            selectedNodeIds: [],
+            selectedEdgeIds: [],
+            viewport: { x: 0, y: 0, zoom: 1 },
+            singleInputPolicy: true,
+            allowSameNodeConnections: false
+          },
+          name: null,
+          themePresetId: null,
+          exportPrefs: null
+        },
+        "My Import.json"
+      )
+    ).toEqual({
+      name: "My Import",
+      themePresetId: "midnight",
+      exportPrefs: {
+        scale: 2,
+        margin: 60,
+        includeFrame: false,
+        frameTitle: "ProtoGraph mockup"
+      }
+    });
+
+    expect(
+      __testables.resolveImportedGraphMeta(
+        {
+          graph: {
+            nodes: {},
+            pins: {},
+            edges: {},
+            order: [],
+            edgeOrder: [],
+            selectedNodeIds: [],
+            selectedEdgeIds: [],
+            viewport: { x: 0, y: 0, zoom: 1 },
+            singleInputPolicy: true,
+            allowSameNodeConnections: false
+          },
+          name: "Imported Name",
+          themePresetId: "slate",
+          exportPrefs: { scale: 3, margin: 24, includeFrame: true, frameTitle: "Demo" }
+        },
+        "ignored.json"
+      )
+    ).toEqual({
+      name: "Imported Name",
+      themePresetId: "slate",
+      exportPrefs: { scale: 3, margin: 24, includeFrame: true, frameTitle: "Demo" }
+    });
+  });
 });

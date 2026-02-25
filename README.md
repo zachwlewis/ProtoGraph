@@ -21,8 +21,8 @@ Offline-first web app for quickly mocking up node graph screenshots.
 - Multi-graph local library:
   - Create/switch/duplicate/delete graphs
   - Per-graph autosave in localStorage
-  - JSON import creates a new graph entry
-  - JSON export for active graph
+  - JSON import creates a new graph entry and preserves metadata when present (name/theme/export prefs)
+  - JSON export for active graph includes graph metadata (name/theme/export prefs)
 - Export:
   - PNG viewport
   - PNG full graph

@@ -16,13 +16,19 @@ import { useGraphStore } from "./editor/store/useGraphStore";
 import { getThemePreset, themePresetOrder } from "./editor/theme/themePresets";
 import { exportGraphToPng } from "./export/exportPng";
 import { downloadGraphJson, parseGraphJsonFile } from "./persistence/io";
+import type { ParsedGraphJson } from "./persistence/io";
 import { loadLibraryFromStorage, saveLibraryToStorage } from "./persistence/storage";
 
 type DockSection = "settings" | "properties" | "info";
 type NoticeIntent = "info" | "success" | "error";
 type NoticeState = { text: string; intent: NoticeIntent };
 type DraggedPin = { nodeId: string; direction: PinDirection; index: number; pinId: string } | null;
-type PinDropTarget = { direction: PinDirection; index: number } | null;
+type PinDropTarget = { nodeId: string; direction: PinDirection; index: number } | null;
+type ImportedGraphMeta = {
+  name: string;
+  themePresetId: ThemePresetId;
+  exportPrefs: SavedGraph["exportPrefs"];
+};
 
 export function App() {
   const didHydrateInitial = useRef(false);
@@ -31,6 +37,7 @@ export function App() {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDetailsElement | null>(null);
   const lastSelectedNodeRef = useRef<GraphModel["nodes"][string] | null>(null);
+  const pinDragTransactionOpenRef = useRef(false);
   const [library, setLibrary] = useState<GraphLibrary | null>(null);
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [inspectorNodeDraft, setInspectorNodeDraft] = useState("");
@@ -333,7 +340,15 @@ export function App() {
 
   const onExportJson = () => {
     const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ProtoGraph-graph";
-    downloadGraphJson(graphSnapshot, `${exportName}.json`);
+    downloadGraphJson(
+      {
+        graph: graphSnapshot,
+        name: activeSavedGraph?.name,
+        themePresetId: activeSavedGraph?.themePresetId,
+        exportPrefs: activeSavedGraph?.exportPrefs
+      },
+      `${exportName}.json`
+    );
     pushNotice("Exported graph JSON", "success");
   };
 
@@ -350,8 +365,8 @@ export function App() {
     try {
       const parsed = await parseGraphJsonFile(file);
       const imported = replaceGraphState(makeGraph(), parsed.graph);
-      const preferredName = (parsed.name ?? file.name.replace(/\.json$/i, "").trim()) || "Imported Graph";
-      createGraphFromImport(imported, preferredName);
+      const graphMeta = resolveImportedGraphMeta(parsed, file.name);
+      createGraphFromImport(imported, graphMeta);
       pushNotice("Imported graph JSON as a new graph", "success");
     } catch {
       pushNotice("Failed to import JSON", "error");
@@ -525,7 +540,7 @@ export function App() {
     pushNotice("Created new graph", "success");
   };
 
-  const createGraphFromImport = (graph: GraphModel, preferredName: string) => {
+  const createGraphFromImport = (graph: GraphModel, importedMeta: ImportedGraphMeta) => {
     const graphId = createGraphId();
     setLibrary((prev) => {
       if (!prev) {
@@ -541,11 +556,11 @@ export function App() {
         },
         [graphId]: {
           id: graphId,
-          name: preferredName,
+          name: importedMeta.name,
           updatedAt: Date.now(),
           graph,
-          exportPrefs: { ...DEFAULT_EXPORT_PREFS },
-          themePresetId: "midnight" as const
+          exportPrefs: importedMeta.exportPrefs,
+          themePresetId: importedMeta.themePresetId
         }
       };
       activateGraphContext(graphId, graph, true);
@@ -692,14 +707,16 @@ export function App() {
     event: DragEvent<HTMLButtonElement>
   ) => {
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", pinId);
+    event.dataTransfer.setData("application/x-protograph-pin", pinId);
+    event.dataTransfer.setData("text/plain", "");
     const row = event.currentTarget.closest(".inspector-pin-row");
     if (row) {
       event.dataTransfer.setDragImage(row, 8, row.clientHeight / 2);
     }
     beginHistoryTransaction();
+    pinDragTransactionOpenRef.current = true;
     setDraggedPin({ nodeId, direction, index, pinId });
-    setPinDropTarget({ direction, index });
+    setPinDropTarget({ nodeId, direction, index });
   };
 
   const onPinDragOver = (nodeId: string, direction: PinDirection, targetIndex: number) => {
@@ -712,26 +729,64 @@ export function App() {
     if (!node) {
       return;
     }
+
     const liveIds = direction === "input" ? node.inputPinIds : node.outputPinIds;
     const liveIndex = liveIds.indexOf(draggedPin.pinId);
     if (liveIndex === -1) {
       return;
     }
 
-    if (liveIndex !== targetIndex) {
-      reorderPin(nodeId, direction, liveIndex, targetIndex);
-      setDraggedPin({ ...draggedPin, index: targetIndex });
+    const boundedTargetIndex = Math.max(0, Math.min(targetIndex, liveIds.length - 1));
+    if (liveIndex !== boundedTargetIndex) {
+      reorderPin(nodeId, direction, liveIndex, boundedTargetIndex);
+      setDraggedPin({ ...draggedPin, index: boundedTargetIndex });
     }
-    setPinDropTarget({ direction, index: targetIndex });
+
+    setPinDropTarget({ nodeId, direction, index: boundedTargetIndex });
   };
 
-  const onPinDrop = (nodeId: string, direction: PinDirection) => {
+  const finalizePinDrop = () => {
+
+    if (pinDragTransactionOpenRef.current) {
+      endHistoryTransaction();
+      pinDragTransactionOpenRef.current = false;
+    }
+    setDraggedPin(null);
+    setPinDropTarget(null);
+  };
+
+  const onPinDrop = (event: DragEvent<HTMLElement>, nodeId: string, direction: PinDirection) => {
+    event.preventDefault();
+    if (!pinDropTarget || pinDropTarget.nodeId !== nodeId || pinDropTarget.direction !== direction) {
+      return;
+    }
+    finalizePinDrop();
+  };
+
+  const onPinDragEnd = () => {
+    if (pinDragTransactionOpenRef.current) {
+      endHistoryTransaction();
+      pinDragTransactionOpenRef.current = false;
+    }
+    setDraggedPin(null);
+    setPinDropTarget(null);
+  };
+
+  const onPinListDragOver = (nodeId: string, direction: PinDirection, edge: "start" | "end") => {
     if (!draggedPin || draggedPin.direction !== direction || draggedPin.nodeId !== nodeId) {
       return;
     }
-    endHistoryTransaction();
-    setDraggedPin(null);
-    setPinDropTarget(null);
+    const liveGraph = useGraphStore.getState();
+    const node = liveGraph.nodes[nodeId];
+    if (!node) {
+      return;
+    }
+    const liveIds = direction === "input" ? node.inputPinIds : node.outputPinIds;
+    if (liveIds.length === 0) {
+      return;
+    }
+    const targetIndex = edge === "start" ? 0 : liveIds.length - 1;
+    onPinDragOver(nodeId, direction, targetIndex);
   };
 
   const openDockSection = (section: DockSection) => {
@@ -958,6 +1013,17 @@ export function App() {
             <section className="pin-group">
               <header>Inputs</header>
               <div className="pin-list grouped-pin-list">
+                <div
+                  className="pin-drop-edge"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    onPinListDragOver(selectedNode.id, "input", "start");
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    finalizePinDrop();
+                  }}
+                />
                 {selectedNode.inputPinIds.map((pinId, index) => {
                   const pin = pins[pinId];
                   if (!pin) {
@@ -968,31 +1034,29 @@ export function App() {
                       className={`inspector-pin-row pin-row-grouped ${
                         draggedPin?.pinId === pinId ? "is-dragging" : ""
                       } ${
-                        pinDropTarget?.direction === "input" && pinDropTarget.index === index ? "is-drop-target" : ""
+                        pinDropTarget?.nodeId === selectedNode.id &&
+                        pinDropTarget?.direction === "input" &&
+                        pinDropTarget?.index === index
+                          ? "is-drop-target"
+                          : ""
                       }`}
                       key={pin.id}
                       onDragOver={(event) => {
                         event.preventDefault();
                         onPinDragOver(selectedNode.id, "input", index);
                       }}
-                      onDragEnter={() => {
-                        onPinDragOver(selectedNode.id, "input", index);
-                      }}
-                      onDrop={() => onPinDrop(selectedNode.id, "input")}
+                      onDrop={(event) => onPinDrop(event, selectedNode.id, "input")}
                     >
                       <button
                         className="pin-handle"
                         title="Reorder input"
                         aria-label="Reorder input"
+                        tabIndex={-1}
                         draggable
                         onDragStart={(event) =>
                           onPinHandleDragStart(selectedNode.id, "input", index, pin.id, event)
                         }
-                        onDragEnd={() => {
-                          endHistoryTransaction();
-                          setDraggedPin(null);
-                          setPinDropTarget(null);
-                        }}
+                        onDragEnd={onPinDragEnd}
                       >
                         <span className="material-symbols-outlined">drag_indicator</span>
                       </button>
@@ -1003,6 +1067,10 @@ export function App() {
                           setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
                         }
                         onFocus={(event) => event.currentTarget.select()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
                         onBlur={(event) =>
                           commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
                         }
@@ -1022,12 +1090,24 @@ export function App() {
                         onClick={() => removePin(pin.id)}
                         title="Remove input"
                         aria-label="Remove input"
+                        tabIndex={-1}
                       >
                         <span className="material-symbols-outlined">delete</span>
                       </button>
                     </div>
                   );
                 })}
+                <div
+                  className="pin-drop-edge"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    onPinListDragOver(selectedNode.id, "input", "end");
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    finalizePinDrop();
+                  }}
+                />
                 <button className="pin-add-btn" onClick={() => addPin(selectedNode.id, "input")}>Add Input</button>
               </div>
             </section>
@@ -1035,6 +1115,14 @@ export function App() {
             <section className="pin-group">
               <header>Outputs</header>
               <div className="pin-list grouped-pin-list">
+                <div
+                  className="pin-drop-edge"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    onPinListDragOver(selectedNode.id, "output", "start");
+                  }}
+                  onDrop={finalizePinDrop}
+                />
                 {selectedNode.outputPinIds.map((pinId, index) => {
                   const pin = pins[pinId];
                   if (!pin) {
@@ -1045,31 +1133,29 @@ export function App() {
                       className={`inspector-pin-row pin-row-grouped ${
                         draggedPin?.pinId === pinId ? "is-dragging" : ""
                       } ${
-                        pinDropTarget?.direction === "output" && pinDropTarget.index === index ? "is-drop-target" : ""
+                        pinDropTarget?.nodeId === selectedNode.id &&
+                        pinDropTarget?.direction === "output" &&
+                        pinDropTarget?.index === index
+                          ? "is-drop-target"
+                          : ""
                       }`}
                       key={pin.id}
                       onDragOver={(event) => {
                         event.preventDefault();
                         onPinDragOver(selectedNode.id, "output", index);
                       }}
-                      onDragEnter={() => {
-                        onPinDragOver(selectedNode.id, "output", index);
-                      }}
-                      onDrop={() => onPinDrop(selectedNode.id, "output")}
+                      onDrop={(event) => onPinDrop(event, selectedNode.id, "output")}
                     >
                       <button
                         className="pin-handle"
                         title="Reorder output"
                         aria-label="Reorder output"
+                        tabIndex={-1}
                         draggable
                         onDragStart={(event) =>
                           onPinHandleDragStart(selectedNode.id, "output", index, pin.id, event)
                         }
-                        onDragEnd={() => {
-                          endHistoryTransaction();
-                          setDraggedPin(null);
-                          setPinDropTarget(null);
-                        }}
+                        onDragEnd={onPinDragEnd}
                       >
                         <span className="material-symbols-outlined">drag_indicator</span>
                       </button>
@@ -1080,6 +1166,10 @@ export function App() {
                           setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
                         }
                         onFocus={(event) => event.currentTarget.select()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
                         onBlur={(event) =>
                           commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
                         }
@@ -1099,12 +1189,24 @@ export function App() {
                         onClick={() => removePin(pin.id)}
                         title="Remove output"
                         aria-label="Remove output"
+                        tabIndex={-1}
                       >
                         <span className="material-symbols-outlined">delete</span>
                       </button>
                     </div>
                   );
                 })}
+                <div
+                  className="pin-drop-edge"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    onPinListDragOver(selectedNode.id, "output", "end");
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    finalizePinDrop();
+                  }}
+                />
                 <button className="pin-add-btn" onClick={() => addPin(selectedNode.id, "output")}>Add Output</button>
               </div>
             </section>
@@ -1380,8 +1482,18 @@ function pickMostRecentlyUpdatedGraphId(
 
 export const __testables = {
   pickMostRecentlyUpdatedGraphId,
+  resolveImportedGraphMeta,
   toFilenameBase
 };
+
+function resolveImportedGraphMeta(parsed: ParsedGraphJson, fileName: string): ImportedGraphMeta {
+  const name = (parsed.name ?? fileName.replace(/\.json$/i, "").trim()) || "Imported Graph";
+  return {
+    name,
+    themePresetId: parsed.themePresetId ?? "midnight",
+    exportPrefs: parsed.exportPrefs ?? { ...DEFAULT_EXPORT_PREFS }
+  };
+}
 
 function toFilenameBase(value: string): string {
   const trimmed = value.trim();

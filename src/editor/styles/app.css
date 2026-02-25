@@ -867,8 +867,53 @@ input[type="checkbox"] {
   padding-right: 28px;
 }
 
+.toolbar-select-wrap select:focus,
+.toolbar-menu select:focus,
+.floating-panel-content select:focus {
+  outline: 2px solid #9ec2ff;
+  outline-offset: 1px;
+  border-color: #9ec2ff;
+}
+
+select option,
+select optgroup {
+  background-color: #1a1f28;
+  color: #d9e2f2;
+}
+
+.pin-drop-edge {
+  height: 8px;
+  border-radius: 6px;
+}
+
+.pin-drop-edge:hover {
+  background: rgba(119, 168, 255, 0.12);
+}
+
 .toolbar-select-wrap select::-ms-expand,
 .toolbar-menu select::-ms-expand,
 .floating-panel-content select::-ms-expand {
   display: none;
+}
+
+@media (forced-colors: active) {
+  .toolbar-select-wrap select,
+  .toolbar-menu select,
+  .floating-panel-content select {
+    appearance: auto;
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    background-image: none;
+    border: 1px solid CanvasText;
+    color: CanvasText;
+    background: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .toolbar-select-wrap select:focus,
+  .toolbar-menu select:focus,
+  .floating-panel-content select:focus {
+    outline: 2px solid Highlight;
+    border-color: Highlight;
+  }
 }
