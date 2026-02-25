@@ -1,0 +1,74 @@
+{
+  "name": "Demo 03 - Advanced Pipeline",
+  "themePresetId": "blender",
+  "exportPrefs": {
+    "scale": 3,
+    "margin": 90,
+    "includeFrame": true,
+    "frameTitle": "Advanced Pipeline"
+  },
+  "graph": {
+    "nodes": {
+      "node_1": { "id": "node_1", "title": "Time", "x": 20, "y": 60, "width": 260, "height": 86, "inputPinIds": ["pin_1"], "outputPinIds": ["pin_2"] },
+      "node_2": { "id": "node_2", "title": "UV", "x": 20, "y": 240, "width": 260, "height": 86, "inputPinIds": ["pin_3"], "outputPinIds": ["pin_4"] },
+      "node_3": { "id": "node_3", "title": "Panner", "x": 340, "y": 200, "width": 260, "height": 130, "inputPinIds": ["pin_5", "pin_6", "pin_7"], "outputPinIds": ["pin_8"] },
+      "node_4": { "id": "node_4", "title": "Voronoi", "x": 680, "y": 190, "width": 260, "height": 108, "inputPinIds": ["pin_9", "pin_10"], "outputPinIds": ["pin_11"] },
+      "node_5": { "id": "node_5", "title": "Color Correct", "x": 1040, "y": 80, "width": 260, "height": 152, "inputPinIds": ["pin_12", "pin_13", "pin_14", "pin_15"], "outputPinIds": ["pin_16"] },
+      "node_6": { "id": "node_6", "title": "Normal From Height", "x": 1040, "y": 300, "width": 260, "height": 108, "inputPinIds": ["pin_17", "pin_18"], "outputPinIds": ["pin_19"] },
+      "node_7": { "id": "node_7", "title": "PBR Combine", "x": 1390, "y": 190, "width": 260, "height": 130, "inputPinIds": ["pin_20", "pin_21", "pin_22"], "outputPinIds": ["pin_23"] },
+      "node_8": { "id": "node_8", "title": "Preview", "x": 1730, "y": 190, "width": 260, "height": 108, "inputPinIds": ["pin_24", "pin_25"], "outputPinIds": ["pin_26"] }
+    },
+    "pins": {
+      "pin_1": { "id": "pin_1", "nodeId": "node_1", "direction": "input", "label": "In", "type": "Any In", "color": "#58c4ff", "shape": "circle" },
+      "pin_2": { "id": "pin_2", "nodeId": "node_1", "direction": "output", "label": "Seconds", "type": "Float", "color": "#ffb655", "shape": "circle" },
+      "pin_3": { "id": "pin_3", "nodeId": "node_2", "direction": "input", "label": "In", "type": "Any In", "color": "#58c4ff", "shape": "circle" },
+      "pin_4": { "id": "pin_4", "nodeId": "node_2", "direction": "output", "label": "UV", "type": "Vector2", "color": "#ffb655", "shape": "diamond" },
+      "pin_5": { "id": "pin_5", "nodeId": "node_3", "direction": "input", "label": "UV", "type": "Vector2", "color": "#58c4ff", "shape": "diamond" },
+      "pin_6": { "id": "pin_6", "nodeId": "node_3", "direction": "input", "label": "Speed X", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_7": { "id": "pin_7", "nodeId": "node_3", "direction": "input", "label": "Speed Y", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_8": { "id": "pin_8", "nodeId": "node_3", "direction": "output", "label": "UV Out", "type": "Vector2", "color": "#ffb655", "shape": "diamond" },
+      "pin_9": { "id": "pin_9", "nodeId": "node_4", "direction": "input", "label": "UV", "type": "Vector2", "color": "#58c4ff", "shape": "diamond" },
+      "pin_10": { "id": "pin_10", "nodeId": "node_4", "direction": "input", "label": "Scale", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_11": { "id": "pin_11", "nodeId": "node_4", "direction": "output", "label": "Distance", "type": "Float", "color": "#ffb655", "shape": "circle" },
+      "pin_12": { "id": "pin_12", "nodeId": "node_5", "direction": "input", "label": "Value", "type": "Float", "color": "#58c4ff", "shape": "circle" },
+      "pin_13": { "id": "pin_13", "nodeId": "node_5", "direction": "input", "label": "Contrast", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_14": { "id": "pin_14", "nodeId": "node_5", "direction": "input", "label": "Gamma", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_15": { "id": "pin_15", "nodeId": "node_5", "direction": "input", "label": "Tint", "type": "Color", "color": "#58c4ff", "shape": "diamond" },
+      "pin_16": { "id": "pin_16", "nodeId": "node_5", "direction": "output", "label": "Albedo", "type": "Color", "color": "#ffb655", "shape": "circle" },
+      "pin_17": { "id": "pin_17", "nodeId": "node_6", "direction": "input", "label": "Height", "type": "Float", "color": "#58c4ff", "shape": "circle" },
+      "pin_18": { "id": "pin_18", "nodeId": "node_6", "direction": "input", "label": "Strength", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_19": { "id": "pin_19", "nodeId": "node_6", "direction": "output", "label": "Normal", "type": "Vector3", "color": "#ffb655", "shape": "diamond" },
+      "pin_20": { "id": "pin_20", "nodeId": "node_7", "direction": "input", "label": "BaseColor", "type": "Color", "color": "#58c4ff", "shape": "circle" },
+      "pin_21": { "id": "pin_21", "nodeId": "node_7", "direction": "input", "label": "Normal", "type": "Vector3", "color": "#58c4ff", "shape": "diamond" },
+      "pin_22": { "id": "pin_22", "nodeId": "node_7", "direction": "input", "label": "Roughness", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_23": { "id": "pin_23", "nodeId": "node_7", "direction": "output", "label": "Shader", "type": "Shader", "color": "#ffb655", "shape": "circle" },
+      "pin_24": { "id": "pin_24", "nodeId": "node_8", "direction": "input", "label": "Surface", "type": "Shader", "color": "#58c4ff", "shape": "circle" },
+      "pin_25": { "id": "pin_25", "nodeId": "node_8", "direction": "input", "label": "Debug", "type": "Float", "color": "#58c4ff", "shape": "square" },
+      "pin_26": { "id": "pin_26", "nodeId": "node_8", "direction": "output", "label": "Out", "type": "Any Out", "color": "#ffb655", "shape": "circle" }
+    },
+    "edges": {
+      "edge_1": { "id": "edge_1", "fromPinId": "pin_4", "toPinId": "pin_5", "color": "#ffb655" },
+      "edge_2": { "id": "edge_2", "fromPinId": "pin_2", "toPinId": "pin_6", "color": "#ffb655" },
+      "edge_3": { "id": "edge_3", "fromPinId": "pin_2", "toPinId": "pin_7", "color": "#ffb655" },
+      "edge_4": { "id": "edge_4", "fromPinId": "pin_8", "toPinId": "pin_9", "color": "#ffb655" },
+      "edge_5": { "id": "edge_5", "fromPinId": "pin_11", "toPinId": "pin_12", "color": "#ffb655" },
+      "edge_6": { "id": "edge_6", "fromPinId": "pin_11", "toPinId": "pin_17", "color": "#ffb655" },
+      "edge_7": { "id": "edge_7", "fromPinId": "pin_16", "toPinId": "pin_20", "color": "#ffb655" },
+      "edge_8": { "id": "edge_8", "fromPinId": "pin_19", "toPinId": "pin_21", "color": "#ffb655" },
+      "edge_9": { "id": "edge_9", "fromPinId": "pin_11", "toPinId": "pin_22", "color": "#ffb655" },
+      "edge_10": { "id": "edge_10", "fromPinId": "pin_23", "toPinId": "pin_24", "color": "#ffb655" },
+      "edge_11": { "id": "edge_11", "fromPinId": "pin_2", "toPinId": "pin_25", "color": "#ffb655" }
+    },
+    "order": ["node_1", "node_2", "node_3", "node_4", "node_5", "node_6", "node_7", "node_8"],
+    "edgeOrder": ["edge_1", "edge_2", "edge_3", "edge_4", "edge_5", "edge_6", "edge_7", "edge_8", "edge_9", "edge_10", "edge_11"],
+    "selectedNodeIds": [],
+    "selectedEdgeIds": [],
+    "viewport": {
+      "x": -120,
+      "y": -10,
+      "zoom": 0.78
+    },
+    "singleInputPolicy": false,
+    "allowSameNodeConnections": true
+  }
+}

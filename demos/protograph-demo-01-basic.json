@@ -1,0 +1,91 @@
+{
+  "name": "Demo 01 - Basic Flow",
+  "themePresetId": "midnight",
+  "exportPrefs": {
+    "scale": 2,
+    "margin": 60,
+    "includeFrame": false,
+    "frameTitle": "ProtoGraph mockup"
+  },
+  "graph": {
+    "nodes": {
+      "node_1": {
+        "id": "node_1",
+        "title": "Input",
+        "x": 120,
+        "y": 180,
+        "width": 260,
+        "height": 86,
+        "inputPinIds": ["pin_1"],
+        "outputPinIds": ["pin_2"]
+      },
+      "node_2": {
+        "id": "node_2",
+        "title": "Output",
+        "x": 520,
+        "y": 180,
+        "width": 260,
+        "height": 86,
+        "inputPinIds": ["pin_3"],
+        "outputPinIds": ["pin_4"]
+      }
+    },
+    "pins": {
+      "pin_1": {
+        "id": "pin_1",
+        "nodeId": "node_1",
+        "direction": "input",
+        "label": "In",
+        "type": "Any In",
+        "color": "#58c4ff",
+        "shape": "circle"
+      },
+      "pin_2": {
+        "id": "pin_2",
+        "nodeId": "node_1",
+        "direction": "output",
+        "label": "Out",
+        "type": "Any Out",
+        "color": "#ffb655",
+        "shape": "circle"
+      },
+      "pin_3": {
+        "id": "pin_3",
+        "nodeId": "node_2",
+        "direction": "input",
+        "label": "In",
+        "type": "Any In",
+        "color": "#58c4ff",
+        "shape": "circle"
+      },
+      "pin_4": {
+        "id": "pin_4",
+        "nodeId": "node_2",
+        "direction": "output",
+        "label": "Out",
+        "type": "Any Out",
+        "color": "#ffb655",
+        "shape": "circle"
+      }
+    },
+    "edges": {
+      "edge_1": {
+        "id": "edge_1",
+        "fromPinId": "pin_2",
+        "toPinId": "pin_3",
+        "color": "#ffb655"
+      }
+    },
+    "order": ["node_1", "node_2"],
+    "edgeOrder": ["edge_1"],
+    "selectedNodeIds": [],
+    "selectedEdgeIds": [],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    },
+    "singleInputPolicy": true,
+    "allowSameNodeConnections": false
+  }
+}
