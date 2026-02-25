@@ -67,6 +67,7 @@ export function InfiniteCanvas({
   const viewport = useGraphStore((state) => state.viewport);
   const singleInputPolicy = useGraphStore((state) => state.singleInputPolicy);
   const allowSameNodeConnections = useGraphStore((state) => state.allowSameNodeConnections);
+  const blendWireColors = useGraphStore((state) => state.blendWireColors);
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const setSelection = useGraphStore((state) => state.setSelection);
   const setSelectionByMarquee = useGraphStore((state) => state.setSelectionByMarquee);
@@ -89,6 +90,14 @@ export function InfiniteCanvas({
     () => edgeOrder.map((id) => edgesById[id]).filter((edge): edge is EdgeModel => edge !== undefined),
     [edgeOrder, edgesById]
   );
+  const connectedPinIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const edge of edges) {
+      ids.add(edge.fromPinId);
+      ids.add(edge.toPinId);
+    }
+    return ids;
+  }, [edges]);
   const graph = useMemo<GraphModel>(
     () => ({
       nodes: nodesById,
@@ -100,7 +109,8 @@ export function InfiniteCanvas({
       selectedEdgeIds,
       viewport,
       singleInputPolicy,
-      allowSameNodeConnections
+      allowSameNodeConnections,
+      blendWireColors
     }),
     [
       allowSameNodeConnections,
@@ -112,7 +122,8 @@ export function InfiniteCanvas({
       selectedEdgeIds,
       selectedNodeIds,
       singleInputPolicy,
-      viewport
+      viewport,
+      blendWireColors
     ]
   );
 
@@ -664,6 +675,34 @@ export function InfiniteCanvas({
         style={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})` }}
       >
         <svg className="edge-layer">
+          <defs>
+            {blendWireColors
+              ? edges.map((edge) => {
+              const from = getPinCenter(graph, edge.fromPinId);
+              const to = getPinCenter(graph, edge.toPinId);
+              const fromPin = pinsById[edge.fromPinId];
+              const toPin = pinsById[edge.toPinId];
+              if (!from || !to || !fromPin || !toPin) {
+                return null;
+              }
+
+              return (
+                <linearGradient
+                  key={`grad-${edge.id}`}
+                  id={`edge-gradient-${edge.id}`}
+                  gradientUnits="userSpaceOnUse"
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                >
+                  <stop offset="0%" stopColor={pinColorVar(fromPin.color)} />
+                  <stop offset="100%" stopColor={pinColorVar(toPin.color)} />
+                </linearGradient>
+              );
+              })
+              : null}
+          </defs>
           {edges.map((edge) => {
             const from = getPinCenter(graph, edge.fromPinId);
             const to = getPinCenter(graph, edge.toPinId);
@@ -677,7 +716,13 @@ export function InfiniteCanvas({
                 key={edge.id}
                 className={`edge-path ${selected ? "is-selected" : ""}`}
                 d={makeCurve(from.x, from.y, to.x, to.y)}
-                stroke="var(--wire-color)"
+                stroke={
+                  selected
+                    ? undefined
+                    : blendWireColors
+                      ? `url(#edge-gradient-${edge.id})`
+                      : "var(--pin-color-white)"
+                }
                 onMouseDown={(event) => onEdgeMouseDown(event, edge.id)}
               />
             );
@@ -712,6 +757,7 @@ export function InfiniteCanvas({
             isConnecting={dragState.mode === "connect"}
             hoveredPinId={hoveredPinId}
             hoveredPinValid={hoveredPinValid}
+            connectedPinIds={connectedPinIds}
             onMouseDown={onNodeMouseDown}
             onPinMouseDown={onPinMouseDown}
             onPinMouseUp={onPinMouseUp}
@@ -803,4 +849,8 @@ function inferWheelMode(event: ReactWheelEvent<HTMLDivElement>): "mouse" | "trac
     return "mouse";
   }
   return "trackpad";
+}
+
+function pinColorVar(color: PinModel["color"]): string {
+  return `var(--pin-color-${color})`;
 }

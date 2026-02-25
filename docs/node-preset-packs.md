@@ -18,8 +18,8 @@ type PinPreset = {
   label: string;
   direction: "input" | "output";
   type?: string;
-  color?: string;
-  shape?: "circle" | "diamond" | "square";
+  color?: "white" | "red" | "blue" | "green" | "purple" | "yellow" | "cyan" | "magenta";
+  shape?: "circle" | "diamond" | "square" | "execution";
 };
 
 type NodePreset = {
@@ -121,11 +121,11 @@ If `type`, `color`, or `shape` are omitted in a `PinPreset`, defaults are applie
 
 - Input pin defaults:
   - `type: "Any In"`
-  - `color: "#58c4ff"`
+  - `color: "blue"`
   - `shape: "circle"`
 - Output pin defaults:
   - `type: "Any Out"`
-  - `color: "#ffb655"`
+  - `color: "yellow"`
   - `shape: "circle"`
 
 ## Placement + Interaction Behavior

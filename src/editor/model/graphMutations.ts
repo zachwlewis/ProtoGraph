@@ -4,7 +4,9 @@ import type {
   GraphModel,
   NodeModel,
   PinDirection,
+  PinColor,
   PinModel,
+  PinShape,
   Viewport
 } from "./types";
 import type { NodePreset } from "../presets/types";
@@ -51,7 +53,8 @@ export function makeGraph(): GraphModel {
       zoom: 1
     },
     singleInputPolicy: true,
-    allowSameNodeConnections: false
+    allowSameNodeConnections: false,
+    blendWireColors: true
   };
 }
 
@@ -393,6 +396,28 @@ export function renamePin(graph: GraphModel, pinId: string, label: string): Grap
   });
 }
 
+export function setPinShape(graph: GraphModel, pinId: string, shape: PinShape): GraphModel {
+  const pin = graph.pins[pinId];
+  if (!pin || pin.shape === shape) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    draft.pins[pinId].shape = shape;
+  });
+}
+
+export function setPinColor(graph: GraphModel, pinId: string, color: PinColor): GraphModel {
+  const pin = graph.pins[pinId];
+  if (!pin || pin.color === color) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    draft.pins[pinId].color = color;
+  });
+}
+
 export function setSelectionByMarquee(
   graph: GraphModel,
   rect: WorldRect,
@@ -548,6 +573,12 @@ export function setAllowSameNodeConnections(graph: GraphModel, value: boolean): 
   });
 }
 
+export function setBlendWireColors(graph: GraphModel, value: boolean): GraphModel {
+  return produce(graph, (draft) => {
+    draft.blendWireColors = value;
+  });
+}
+
 export function setViewport(graph: GraphModel, viewport: Viewport): GraphModel {
   return produce(graph, (draft) => {
     draft.viewport = {
@@ -632,7 +663,7 @@ function makePin(
     direction,
     label,
     type: overrides?.type ?? (direction === "input" ? "Any In" : "Any Out"),
-    color: overrides?.color ?? (direction === "input" ? "#58c4ff" : "#ffb655"),
+    color: overrides?.color ?? (direction === "input" ? "blue" : "yellow"),
     shape: overrides?.shape ?? "circle"
   };
 }
@@ -659,7 +690,16 @@ function sanitizeGraph(source: GraphModel): GraphModel {
   );
 
   const pins = Object.fromEntries(
-    Object.entries(source.pins).filter(([, pin]) => Boolean(nodes[pin.nodeId]))
+    Object.entries(source.pins)
+      .filter(([, pin]) => Boolean(nodes[pin.nodeId]))
+      .map(([id, pin]) => [
+        id,
+        {
+          ...pin,
+          color: sanitizePinColor(pin.color, pin.direction),
+          shape: sanitizePinShape(pin.shape)
+        } satisfies PinModel
+      ])
   );
 
   const edges = Object.fromEntries(
@@ -684,7 +724,8 @@ function sanitizeGraph(source: GraphModel): GraphModel {
       zoom: clamp(source.viewport?.zoom ?? 1, MIN_ZOOM, MAX_ZOOM)
     },
     singleInputPolicy: source.singleInputPolicy ?? true,
-    allowSameNodeConnections: source.allowSameNodeConnections ?? false
+    allowSameNodeConnections: source.allowSameNodeConnections ?? false,
+    blendWireColors: source.blendWireColors ?? true
   };
 }
 
@@ -706,4 +747,56 @@ function maxNumericSuffix(collection: Record<string, unknown>, prefix: string): 
     }
   }
   return max;
+}
+
+function sanitizePinShape(shape: string): PinShape {
+  if (shape === "circle" || shape === "diamond" || shape === "square" || shape === "execution") {
+    return shape;
+  }
+  return "circle";
+}
+
+function sanitizePinColor(color: string | undefined, direction: PinDirection): PinColor {
+  const fallback: PinColor = direction === "input" ? "blue" : "yellow";
+  if (!color) {
+    return fallback;
+  }
+  if (
+    color === "white" ||
+    color === "red" ||
+    color === "blue" ||
+    color === "green" ||
+    color === "purple" ||
+    color === "yellow" ||
+    color === "cyan" ||
+    color === "magenta"
+  ) {
+    return color;
+  }
+
+  const tokenMatch = color.match(/^var\(--pin-color-(white|red|blue|green|purple|yellow|cyan|magenta)\)$/);
+  if (tokenMatch) {
+    return tokenMatch[1] as PinColor;
+  }
+
+  const legacyMap: Record<string, PinColor> = {
+    "#58c4ff": "blue",
+    "#ffb655": "yellow",
+    "#7fe3ff": "cyan",
+    "#59d68c": "green",
+    "#ffd166": "yellow",
+    "#ef476f": "red",
+    "#06d6a0": "green",
+    "#118ab2": "blue",
+    "#f78c6b": "red",
+    "#c77dff": "purple",
+    "#8ac926": "green",
+    "#ff595e": "red",
+    "#1982c4": "blue",
+    "#ffca3a": "yellow",
+    "#6a4c93": "purple",
+    "#2ec4b6": "cyan"
+  };
+
+  return legacyMap[color.toLowerCase()] ?? fallback;
 }

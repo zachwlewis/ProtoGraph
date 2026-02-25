@@ -6,7 +6,7 @@ import type {
   SelectionMode,
   WorldRect
 } from "../model/graphMutations";
-import type { GraphModel, PinDirection } from "../model/types";
+import type { GraphModel, PinColor, PinDirection, PinShape } from "../model/types";
 import {
   alignSelection,
   addPinToNode,
@@ -22,6 +22,8 @@ import {
   panViewportBy,
   renameNode,
   renamePin,
+  setPinColor,
+  setPinShape,
   replaceGraphState,
   removePin,
   reorderPinInNode,
@@ -30,6 +32,7 @@ import {
   setSelectedNodes,
   setSingleInputPolicy,
   setAllowSameNodeConnections,
+  setBlendWireColors,
   setViewport,
   zoomAtScreenPoint
 } from "../model/graphMutations";
@@ -50,6 +53,8 @@ type GraphActions = {
   reorderPin: (nodeId: string, direction: PinDirection, fromIndex: number, toIndex: number) => void;
   renameNode: (nodeId: string, title: string) => void;
   renamePin: (pinId: string, label: string) => void;
+  setPinShape: (pinId: string, shape: PinShape) => void;
+  setPinColor: (pinId: string, color: PinColor) => void;
   connectPins: (fromPinId: string, toPinId: string) => ConnectResult;
   setSelection: (ids: string[]) => void;
   setSelectionByMarquee: (rect: WorldRect, mode?: SelectionMode) => void;
@@ -65,6 +70,7 @@ type GraphActions = {
   zoomAt: (screenX: number, screenY: number, delta: number) => void;
   setSingleInputPolicy: (value: boolean) => void;
   setAllowSameNodeConnections: (value: boolean) => void;
+  setBlendWireColors: (value: boolean) => void;
   replaceGraph: (graph: GraphModel) => void;
   undo: () => void;
   redo: () => void;
@@ -98,7 +104,8 @@ export const useGraphStore = create<GraphModel & GraphHistoryState & GraphAction
     selectedEdgeIds: state.selectedEdgeIds,
     viewport: state.viewport,
     singleInputPolicy: state.singleInputPolicy,
-    allowSameNodeConnections: state.allowSameNodeConnections
+    allowSameNodeConnections: state.allowSameNodeConnections,
+    blendWireColors: state.blendWireColors
   });
 
   const snapshotContent = (graph: GraphModel): GraphContentSnapshot => ({
@@ -254,6 +261,8 @@ export const useGraphStore = create<GraphModel & GraphHistoryState & GraphAction
       applyUndoable((graph) => reorderPinInNode(graph, nodeId, direction, fromIndex, toIndex)),
     renameNode: (nodeId, title) => applyUndoable((graph) => renameNode(graph, nodeId, title)),
     renamePin: (pinId, label) => applyUndoable((graph) => renamePin(graph, pinId, label)),
+    setPinShape: (pinId, shape) => applyUndoable((graph) => setPinShape(graph, pinId, shape)),
+    setPinColor: (pinId, color) => applyUndoable((graph) => setPinColor(graph, pinId, color)),
 
     connectPins: (fromPinId, toPinId) => {
       let result: ConnectResult = { graph: toGraph(get()), success: false };
@@ -281,6 +290,7 @@ export const useGraphStore = create<GraphModel & GraphHistoryState & GraphAction
     setSingleInputPolicy: (value) => applyNonUndoable((graph) => setSingleInputPolicy(graph, value)),
     setAllowSameNodeConnections: (value) =>
       applyNonUndoable((graph) => setAllowSameNodeConnections(graph, value)),
+    setBlendWireColors: (value) => applyNonUndoable((graph) => setBlendWireColors(graph, value)),
 
     replaceGraph: (graph) => {
       const entry = ensureHistory(activeGraphContextId);

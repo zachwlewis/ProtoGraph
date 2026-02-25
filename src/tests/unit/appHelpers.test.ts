@@ -18,7 +18,8 @@ describe("app helpers", () => {
           selectedEdgeIds: [],
           viewport: { x: 0, y: 0, zoom: 1 },
           singleInputPolicy: true,
-          allowSameNodeConnections: false
+          allowSameNodeConnections: false,
+          blendWireColors: true
         },
         exportPrefs: { scale: 2, margin: 60, includeFrame: false, frameTitle: "x" },
         themePresetId: "midnight"
@@ -37,7 +38,8 @@ describe("app helpers", () => {
           selectedEdgeIds: [],
           viewport: { x: 0, y: 0, zoom: 1 },
           singleInputPolicy: true,
-          allowSameNodeConnections: false
+          allowSameNodeConnections: false,
+          blendWireColors: true
         },
         exportPrefs: { scale: 2, margin: 60, includeFrame: false, frameTitle: "x" },
         themePresetId: "midnight"
@@ -67,7 +69,8 @@ describe("app helpers", () => {
             selectedEdgeIds: [],
             viewport: { x: 0, y: 0, zoom: 1 },
             singleInputPolicy: true,
-            allowSameNodeConnections: false
+            allowSameNodeConnections: false,
+            blendWireColors: true
           },
           name: null,
           themePresetId: null,
@@ -99,7 +102,8 @@ describe("app helpers", () => {
             selectedEdgeIds: [],
             viewport: { x: 0, y: 0, zoom: 1 },
             singleInputPolicy: true,
-            allowSameNodeConnections: false
+            allowSameNodeConnections: false,
+            blendWireColors: true
           },
           name: "Imported Name",
           themePresetId: "slate",

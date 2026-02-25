@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import type { NodeModel, PinModel } from "../model/types";
 import { layoutTokens } from "../theme/layoutTokens";
+import { getPinShapeSvgPoints } from "../utils/pinShapeGeometry";
 
 type NodeCardProps = {
   node: NodeModel;
@@ -11,6 +12,7 @@ type NodeCardProps = {
   isConnecting: boolean;
   hoveredPinId: string | null;
   hoveredPinValid: boolean;
+  connectedPinIds: ReadonlySet<string>;
   onMouseDown: (event: MouseEvent<HTMLDivElement>, nodeId: string) => void;
   onPinMouseDown: (event: MouseEvent<HTMLButtonElement>, pinId: string) => void;
   onPinMouseUp: (event: MouseEvent<HTMLButtonElement>, pinId: string) => void;
@@ -28,6 +30,7 @@ export function NodeCard({
   isConnecting,
   hoveredPinId,
   hoveredPinValid,
+  connectedPinIds,
   onMouseDown,
   onPinMouseDown,
   onPinMouseUp,
@@ -106,14 +109,24 @@ export function NodeCard({
           {inputPins.map((pin) => (
             <div className="pin-row pin-row-input" key={pin.id}>
               <button
-                className={pinClass(pin.id, isConnecting, hoveredPinId, hoveredPinValid)}
-                style={{ backgroundColor: pin.color }}
+                className={pinClass(
+                  pin.id,
+                  pin.shape,
+                  connectedPinIds.has(pin.id),
+                  isConnecting,
+                  hoveredPinId,
+                  hoveredPinValid
+                )}
+                style={pinStyle(pin.color)}
                 onMouseDown={(event) => onPinMouseDown(event, pin.id)}
                 onMouseUp={(event) => onPinMouseUp(event, pin.id)}
                 onMouseEnter={() => onPinMouseEnter(pin.id)}
                 onMouseLeave={() => onPinMouseLeave(pin.id)}
                 title={`${pin.label} (${pin.type})`}
-              />
+                data-shape={pin.shape}
+              >
+                {renderPinGlyph(pin.shape)}
+              </button>
               {renderPinLabel(
                 pin,
                 editingPinId,
@@ -138,14 +151,24 @@ export function NodeCard({
                 onRenamePin
               )}
               <button
-                className={pinClass(pin.id, isConnecting, hoveredPinId, hoveredPinValid)}
-                style={{ backgroundColor: pin.color }}
+                className={pinClass(
+                  pin.id,
+                  pin.shape,
+                  connectedPinIds.has(pin.id),
+                  isConnecting,
+                  hoveredPinId,
+                  hoveredPinValid
+                )}
+                style={pinStyle(pin.color)}
                 onMouseDown={(event) => onPinMouseDown(event, pin.id)}
                 onMouseUp={(event) => onPinMouseUp(event, pin.id)}
                 onMouseEnter={() => onPinMouseEnter(pin.id)}
                 onMouseLeave={() => onPinMouseLeave(pin.id)}
                 title={`${pin.label} (${pin.type})`}
-              />
+                data-shape={pin.shape}
+              >
+                {renderPinGlyph(pin.shape)}
+              </button>
             </div>
           ))}
         </div>
@@ -156,17 +179,43 @@ export function NodeCard({
 
 function pinClass(
   pinId: string,
+  pinShape: PinModel["shape"],
+  isConnected: boolean,
   isConnecting: boolean,
   hoveredPinId: string | null,
   hoveredPinValid: boolean
 ): string {
+  const classes = ["pin-dot", `pin-shape-${pinShape}`, isConnected ? "is-connected" : "is-unconnected"];
   if (!isConnecting) {
-    return "pin-dot";
+    return classes.join(" ");
   }
   if (hoveredPinId !== pinId) {
-    return "pin-dot";
+    return classes.join(" ");
   }
-  return hoveredPinValid ? "pin-dot is-hover-valid" : "pin-dot is-hover-invalid";
+  classes.push(hoveredPinValid ? "is-hover-valid" : "is-hover-invalid");
+  return classes.join(" ");
+}
+
+function pinStyle(color: PinModel["color"]): CSSProperties & Record<`--${string}`, string> {
+  return {
+    "--pin-color": `var(--pin-color-${color})`
+  };
+}
+
+function renderPinGlyph(shape: PinModel["shape"]) {
+  if (shape === "circle") {
+    return (
+      <svg className="pin-dot-glyph" viewBox="0 0 100 100" aria-hidden="true">
+        <circle className="pin-dot-shape" cx="50" cy="50" r="30" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="pin-dot-glyph" viewBox="0 0 100 100" aria-hidden="true">
+      <polygon className="pin-dot-shape" points={getPinShapeSvgPoints(shape)} />
+    </svg>
+  );
 }
 
 function renderPinLabel(

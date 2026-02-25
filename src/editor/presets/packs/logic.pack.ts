@@ -11,9 +11,9 @@ export const logicNodePack: NodePack = {
       category: "Boolean",
       tags: ["&&", "bool"],
       pins: [
-        { label: "A", direction: "input", type: "Bool", color: "#7fe3ff", shape: "diamond" },
-        { label: "B", direction: "input", type: "Bool", color: "#7fe3ff", shape: "diamond" },
-        { label: "Result", direction: "output", type: "Bool", color: "#ffb655", shape: "diamond" }
+        { label: "A", direction: "input", type: "Bool", color: "red", shape: "circle" },
+        { label: "B", direction: "input", type: "Bool", color: "red", shape: "circle" },
+        { label: "Result", direction: "output", type: "Bool", color: "red", shape: "circle" }
       ]
     },
     {
@@ -22,9 +22,9 @@ export const logicNodePack: NodePack = {
       category: "Boolean",
       tags: ["||", "bool"],
       pins: [
-        { label: "A", direction: "input", type: "Bool", color: "#7fe3ff", shape: "diamond" },
-        { label: "B", direction: "input", type: "Bool", color: "#7fe3ff", shape: "diamond" },
-        { label: "Result", direction: "output", type: "Bool", color: "#ffb655", shape: "diamond" }
+        { label: "A", direction: "input", type: "Bool", color: "red", shape: "circle" },
+        { label: "B", direction: "input", type: "Bool", color: "red", shape: "circle" },
+        { label: "Result", direction: "output", type: "Bool", color: "red", shape: "circle" }
       ]
     },
     {
@@ -33,9 +33,9 @@ export const logicNodePack: NodePack = {
       category: "Compare",
       tags: ["==", "compare"],
       pins: [
-        { label: "A", direction: "input", type: "Any", color: "#58c4ff" },
-        { label: "B", direction: "input", type: "Any", color: "#58c4ff" },
-        { label: "Result", direction: "output", type: "Bool", color: "#ffb655", shape: "diamond" }
+        { label: "A", direction: "input", type: "Any", color: "blue", shape: "diamond" },
+        { label: "B", direction: "input", type: "Any", color: "blue", shape: "diamond" },
+        { label: "Result", direction: "output", type: "Bool", color: "red", shape: "circle" }
       ]
     }
   ]

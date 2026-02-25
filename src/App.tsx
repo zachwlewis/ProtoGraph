@@ -7,7 +7,9 @@ import type {
   GraphLibrary,
   GraphModel,
   NavigationMode,
+  PinColor,
   PinDirection,
+  PinShape,
   ResolvedNavigationMode,
   SavedGraph,
   ThemePresetId
@@ -15,7 +17,9 @@ import type {
 import { DEFAULT_EXPORT_PREFS } from "./editor/model/types";
 import { useGraphStore } from "./editor/store/useGraphStore";
 import { getThemePreset, themePresetOrder } from "./editor/theme/themePresets";
+import { PIN_COLOR_OPTIONS } from "./editor/theme/pinPalette";
 import { nodePacks } from "./editor/presets/registry";
+import { getPinShapeSvgPoints } from "./editor/utils/pinShapeGeometry";
 import { exportGraphToPng } from "./export/exportPng";
 import { downloadGraphJson, parseGraphJsonFile } from "./persistence/io";
 import type { ParsedGraphJson } from "./persistence/io";
@@ -40,6 +44,8 @@ type NodePickerState = {
   connectFromPinId?: string;
 };
 
+const PIN_SHAPE_OPTIONS: PinShape[] = ["circle", "diamond", "square", "execution"];
+
 export function App() {
   const didHydrateInitial = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -61,6 +67,7 @@ export function App() {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [draggedPin, setDraggedPin] = useState<DraggedPin>(null);
   const [pinDropTarget, setPinDropTarget] = useState<PinDropTarget>(null);
+  const [expandedPinAdvanced, setExpandedPinAdvanced] = useState<Record<string, boolean>>({});
   const [nodePicker, setNodePicker] = useState<NodePickerState>({
     open: false,
     worldX: 0,
@@ -76,6 +83,8 @@ export function App() {
   const removePin = useGraphStore((state) => state.removePin);
   const renameNode = useGraphStore((state) => state.renameNode);
   const renamePin = useGraphStore((state) => state.renamePin);
+  const setPinShape = useGraphStore((state) => state.setPinShape);
+  const setPinColor = useGraphStore((state) => state.setPinColor);
   const reorderPin = useGraphStore((state) => state.reorderPin);
   const deleteSelection = useGraphStore((state) => state.deleteSelection);
   const duplicateSelection = useGraphStore((state) => state.duplicateSelection);
@@ -100,6 +109,8 @@ export function App() {
   const setSingleInputPolicy = useGraphStore((state) => state.setSingleInputPolicy);
   const allowSameNodeConnections = useGraphStore((state) => state.allowSameNodeConnections);
   const setAllowSameNodeConnections = useGraphStore((state) => state.setAllowSameNodeConnections);
+  const blendWireColors = useGraphStore((state) => state.blendWireColors);
+  const setBlendWireColors = useGraphStore((state) => state.setBlendWireColors);
 
   const selectedNode = useMemo(() => {
     if (selectedNodeIds.length !== 1) {
@@ -119,9 +130,10 @@ export function App() {
       selectedEdgeIds: [],
       viewport,
       singleInputPolicy,
-      allowSameNodeConnections
+      allowSameNodeConnections,
+      blendWireColors
     }),
-    [allowSameNodeConnections, edgeOrder, edges, nodes, order, pins, singleInputPolicy, viewport]
+    [allowSameNodeConnections, blendWireColors, edgeOrder, edges, nodes, order, pins, singleInputPolicy, viewport]
   );
 
   const activeSavedGraph = useMemo(() => {
@@ -188,6 +200,10 @@ export function App() {
     }
     setInspectorPinDrafts(nextPinDrafts);
   }, [pins, selectedNode]);
+
+  useEffect(() => {
+    setExpandedPinAdvanced({});
+  }, [selectedNode?.id]);
 
   useEffect(() => {
     if (!activeSavedGraph) {
@@ -809,6 +825,127 @@ export function App() {
     onPinDragOver(nodeId, direction, targetIndex);
   };
 
+  const renderInspectorPinRow = (
+    pin: GraphModel["pins"][string],
+    direction: PinDirection,
+    selectedNodeId: string,
+    index: number
+  ) => {
+    return (
+      <div
+        className={`inspector-pin-row pin-row-grouped ${draggedPin?.pinId === pin.id ? "is-dragging" : ""} ${
+          pinDropTarget?.nodeId === selectedNodeId &&
+          pinDropTarget?.direction === direction &&
+          pinDropTarget?.index === index
+            ? "is-drop-target"
+            : ""
+        }`}
+        key={pin.id}
+        onDragOver={(event) => {
+          event.preventDefault();
+          onPinDragOver(selectedNodeId, direction, index);
+        }}
+        onDrop={(event) => onPinDrop(event, selectedNodeId, direction)}
+      >
+        <button
+          className="pin-handle"
+          title={direction === "input" ? "Reorder input" : "Reorder output"}
+          aria-label={direction === "input" ? "Reorder input" : "Reorder output"}
+          tabIndex={-1}
+          draggable
+          onDragStart={(event) => onPinHandleDragStart(selectedNodeId, direction, index, pin.id, event)}
+          onDragEnd={onPinDragEnd}
+        >
+          {renderPinShapeIcon(pin.shape, pin.color, true, "pin-drag-icon")}
+        </button>
+        <input
+          className="pin-edit-input"
+          value={inspectorPinDrafts[pin.id] ?? pin.label}
+          onChange={(event) => setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))}
+          onFocus={(event) => event.currentTarget.select()}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onBlur={(event) => commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
+              event.currentTarget.blur();
+            } else if (event.key === "Escape") {
+              setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
+              event.currentTarget.blur();
+            }
+          }}
+        />
+        <button
+          className={`pin-advanced-toggle ${expandedPinAdvanced[pin.id] ? "is-open" : ""}`}
+          onClick={() =>
+            setExpandedPinAdvanced((prev) => ({
+              ...prev,
+              [pin.id]: !prev[pin.id]
+            }))
+          }
+          title="Toggle advanced pin options"
+          aria-label="Toggle advanced pin options"
+          aria-expanded={Boolean(expandedPinAdvanced[pin.id])}
+          type="button"
+        >
+          <span className="material-symbols-outlined">tune</span>
+        </button>
+        <button
+          className="pin-delete-btn"
+          onClick={() => removePin(pin.id)}
+          title={direction === "input" ? "Remove input" : "Remove output"}
+          aria-label={direction === "input" ? "Remove input" : "Remove output"}
+          tabIndex={-1}
+        >
+          <span className="material-symbols-outlined">delete</span>
+        </button>
+        {expandedPinAdvanced[pin.id] ? (
+          <div className="pin-advanced-content">
+            <div className="pin-advanced-field">
+              <label>Shape</label>
+              <div className="pin-shape-toggle" role="radiogroup" aria-label="Pin shape">
+                {PIN_SHAPE_OPTIONS.map((shape) => (
+                  <button
+                    key={shape}
+                    type="button"
+                    className={`pin-shape-option ${pin.shape === shape ? "is-active" : ""}`}
+                    role="radio"
+                    aria-checked={pin.shape === shape}
+                    aria-label={`Pin shape ${shape}`}
+                    onClick={() => setPinShape(pin.id, shape)}
+                    title={shape}
+                  >
+                    {renderPinShapeIcon(shape, pin.color, pin.shape === shape, "pin-shape-icon")}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="pin-advanced-field">
+              <label>Color</label>
+              <div className="pin-color-grid">
+                {PIN_COLOR_OPTIONS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={`pin-color-swatch ${pin.color === color ? "is-selected" : ""}`}
+                    style={{ backgroundColor: `var(--pin-color-${color})` }}
+                    onClick={() => setPinColor(pin.id, color as PinColor)}
+                    title={color}
+                    aria-label={`Set pin color ${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const openDockSection = (section: DockSection) => {
     if (dockOpen && dockSection === section) {
       setDockOpen(false);
@@ -1128,73 +1265,7 @@ export function App() {
                           if (!pin) {
                             return null;
                           }
-                          return (
-                            <div
-                              className={`inspector-pin-row pin-row-grouped ${
-                                draggedPin?.pinId === pinId ? "is-dragging" : ""
-                              } ${
-                                pinDropTarget?.nodeId === selectedNode.id &&
-                                pinDropTarget?.direction === "input" &&
-                                pinDropTarget?.index === index
-                                  ? "is-drop-target"
-                                  : ""
-                              }`}
-                              key={pin.id}
-                              onDragOver={(event) => {
-                                event.preventDefault();
-                                onPinDragOver(selectedNode.id, "input", index);
-                              }}
-                              onDrop={(event) => onPinDrop(event, selectedNode.id, "input")}
-                            >
-                              <button
-                                className="pin-handle"
-                                title="Reorder input"
-                                aria-label="Reorder input"
-                                tabIndex={-1}
-                                draggable
-                                onDragStart={(event) =>
-                                  onPinHandleDragStart(selectedNode.id, "input", index, pin.id, event)
-                                }
-                                onDragEnd={onPinDragEnd}
-                              >
-                                <span className="material-symbols-outlined">drag_indicator</span>
-                              </button>
-                              <input
-                                className="pin-edit-input"
-                                value={inspectorPinDrafts[pin.id] ?? pin.label}
-                                onChange={(event) =>
-                                  setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
-                                }
-                                onFocus={(event) => event.currentTarget.select()}
-                                onDrop={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                }}
-                                onBlur={(event) =>
-                                  commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
-                                }
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") {
-                                    event.preventDefault();
-                                    commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
-                                    event.currentTarget.blur();
-                                  } else if (event.key === "Escape") {
-                                    setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
-                                    event.currentTarget.blur();
-                                  }
-                                }}
-                              />
-                              <button
-                                className="pin-delete-btn"
-                                onClick={() => removePin(pin.id)}
-                                title="Remove input"
-                                aria-label="Remove input"
-                                tabIndex={-1}
-                              >
-                                <span className="material-symbols-outlined">delete</span>
-                              </button>
-                            </div>
-                          );
+                          return renderInspectorPinRow(pin, "input", selectedNode.id, index);
                         })}
                         <div
                           className="pin-drop-edge"
@@ -1229,73 +1300,7 @@ export function App() {
                           if (!pin) {
                             return null;
                           }
-                          return (
-                            <div
-                              className={`inspector-pin-row pin-row-grouped ${
-                                draggedPin?.pinId === pinId ? "is-dragging" : ""
-                              } ${
-                                pinDropTarget?.nodeId === selectedNode.id &&
-                                pinDropTarget?.direction === "output" &&
-                                pinDropTarget?.index === index
-                                  ? "is-drop-target"
-                                  : ""
-                              }`}
-                              key={pin.id}
-                              onDragOver={(event) => {
-                                event.preventDefault();
-                                onPinDragOver(selectedNode.id, "output", index);
-                              }}
-                              onDrop={(event) => onPinDrop(event, selectedNode.id, "output")}
-                            >
-                              <button
-                                className="pin-handle"
-                                title="Reorder output"
-                                aria-label="Reorder output"
-                                tabIndex={-1}
-                                draggable
-                                onDragStart={(event) =>
-                                  onPinHandleDragStart(selectedNode.id, "output", index, pin.id, event)
-                                }
-                                onDragEnd={onPinDragEnd}
-                              >
-                                <span className="material-symbols-outlined">drag_indicator</span>
-                              </button>
-                              <input
-                                className="pin-edit-input"
-                                value={inspectorPinDrafts[pin.id] ?? pin.label}
-                                onChange={(event) =>
-                                  setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
-                                }
-                                onFocus={(event) => event.currentTarget.select()}
-                                onDrop={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                }}
-                                onBlur={(event) =>
-                                  commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
-                                }
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") {
-                                    event.preventDefault();
-                                    commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
-                                    event.currentTarget.blur();
-                                  } else if (event.key === "Escape") {
-                                    setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
-                                    event.currentTarget.blur();
-                                  }
-                                }}
-                              />
-                              <button
-                                className="pin-delete-btn"
-                                onClick={() => removePin(pin.id)}
-                                title="Remove output"
-                                aria-label="Remove output"
-                                tabIndex={-1}
-                              >
-                                <span className="material-symbols-outlined">delete</span>
-                              </button>
-                            </div>
-                          );
+                          return renderInspectorPinRow(pin, "output", selectedNode.id, index);
                         })}
                         <div
                           className="pin-drop-edge"
@@ -1405,6 +1410,14 @@ export function App() {
                   onChange={(event) => setAllowSameNodeConnections(event.target.checked)}
                 />
                 Allow same-node connections
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={blendWireColors}
+                  onChange={(event) => setBlendWireColors(event.target.checked)}
+                />
+                Blend wire colors
               </label>
               <label>
                 Theme Preset
@@ -1522,6 +1535,34 @@ export function App() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function renderPinShapeIcon(
+  shape: PinShape,
+  color: PinColor,
+  filled: boolean,
+  className: string
+) {
+  const style = { "--pin-shape-icon-color": `var(--pin-color-${color})` } as CSSProperties &
+    Record<`--${string}`, string>;
+
+  if (shape === "circle") {
+    return (
+      <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
+        <circle className={`pin-shape-icon-shape ${filled ? "is-filled" : "is-hollow"}`} cx="50" cy="50" r="30" style={style} />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
+      <polygon
+        className={`pin-shape-icon-shape ${filled ? "is-filled" : "is-hollow"}`}
+        points={getPinShapeSvgPoints(shape)}
+        style={style}
+      />
+    </svg>
   );
 }
 

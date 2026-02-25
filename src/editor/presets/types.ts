@@ -1,10 +1,10 @@
-import type { PinDirection, PinShape } from "../model/types";
+import type { PinColor, PinDirection, PinShape } from "../model/types";
 
 export type PinPreset = {
   label: string;
   direction: PinDirection;
   type?: string;
-  color?: string;
+  color?: PinColor;
   shape?: PinShape;
 };
 

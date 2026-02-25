@@ -10,7 +10,7 @@ export const coreNodePack: NodePack = {
       title: "Event",
       category: "Flow",
       tags: ["entry", "flow"],
-      pins: [{ label: "Exec", direction: "output", type: "Exec", color: "#ffb655" }]
+      pins: [{ label: "Out", direction: "output", type: "Exec", color: "white", shape: "execution" }]
     },
     {
       id: "core.branch",
@@ -18,10 +18,10 @@ export const coreNodePack: NodePack = {
       category: "Flow",
       tags: ["if", "condition"],
       pins: [
-        { label: "Exec In", direction: "input", type: "Exec", color: "#58c4ff" },
-        { label: "Condition", direction: "input", type: "Bool", color: "#7fe3ff", shape: "diamond" },
-        { label: "True", direction: "output", type: "Exec", color: "#ffb655" },
-        { label: "False", direction: "output", type: "Exec", color: "#ffb655" }
+        { label: "In", direction: "input", type: "Exec", color: "white", shape: "execution" },
+        { label: "Condition", direction: "input", type: "Bool", color: "red", shape: "circle" },
+        { label: "True", direction: "output", type: "Exec", color: "white", shape: "execution" },
+        { label: "False", direction: "output", type: "Exec", color: "white", shape: "execution" }
       ]
     },
     {
@@ -30,9 +30,9 @@ export const coreNodePack: NodePack = {
       category: "Utility",
       tags: ["debug", "log"],
       pins: [
-        { label: "Exec In", direction: "input", type: "Exec", color: "#58c4ff" },
-        { label: "Value", direction: "input", type: "Any", color: "#58c4ff" },
-        { label: "Exec Out", direction: "output", type: "Exec", color: "#ffb655" }
+        { label: "In", direction: "input", type: "Exec", color: "white", shape: "execution" },
+        { label: "Value", direction: "input", type: "Any", color: "blue", shape: "diamond" },
+        { label: "Out", direction: "output", type: "Exec", color: "white", shape: "execution" }
       ]
     }
   ]

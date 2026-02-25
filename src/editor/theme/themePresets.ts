@@ -1,4 +1,5 @@
 import type { ThemePresetId } from "../model/types";
+import type { PinColor } from "../model/types";
 
 export type ThemePreset = {
   id: ThemePresetId;
@@ -15,6 +16,7 @@ export type ThemePreset = {
     divider: string;
     frameStroke: string;
     frameTitle: string;
+    pinColors: Record<PinColor, string>;
   };
 };
 
@@ -37,7 +39,15 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--node-divider": "#303a4a",
       "--pin-label": "#bbcae5",
       "--selection": "#ff8f2d",
-      "--wire-color": "#c8d2e2"
+      "--wire-color": "#c8d2e2",
+      "--pin-color-white": "#eef4ff",
+      "--pin-color-red": "#ff6b7f",
+      "--pin-color-blue": "#69a8ff",
+      "--pin-color-green": "#58d693",
+      "--pin-color-purple": "#b996ff",
+      "--pin-color-yellow": "#ffd36b",
+      "--pin-color-cyan": "#5fe8ff",
+      "--pin-color-magenta": "#ff81dc"
     },
     export: {
       canvasBg: "#0f1218",
@@ -49,7 +59,17 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       pinLabel: "#bbcae5",
       divider: "#303a4a",
       frameStroke: "rgba(125, 165, 220, 0.52)",
-      frameTitle: "rgba(224, 237, 255, 0.93)"
+      frameTitle: "rgba(224, 237, 255, 0.93)",
+      pinColors: {
+        white: "#eef4ff",
+        red: "#ff6b7f",
+        blue: "#69a8ff",
+        green: "#58d693",
+        purple: "#b996ff",
+        yellow: "#ffd36b",
+        cyan: "#5fe8ff",
+        magenta: "#ff81dc"
+      }
     }
   },
   blueprint: {
@@ -70,7 +90,15 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--node-divider": "#2e567d",
       "--pin-label": "#bfd9f5",
       "--selection": "#ffb650",
-      "--wire-color": "#c7def6"
+      "--wire-color": "#c7def6",
+      "--pin-color-white": "#f2f8ff",
+      "--pin-color-red": "#ff6f7a",
+      "--pin-color-blue": "#52b6ff",
+      "--pin-color-green": "#3de4a4",
+      "--pin-color-purple": "#b987ff",
+      "--pin-color-yellow": "#ffe06b",
+      "--pin-color-cyan": "#45f1ff",
+      "--pin-color-magenta": "#ff73d8"
     },
     export: {
       canvasBg: "#071427",
@@ -82,7 +110,17 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       pinLabel: "#bfd9f5",
       divider: "#2e567d",
       frameStroke: "rgba(121, 187, 255, 0.62)",
-      frameTitle: "rgba(223, 241, 255, 0.94)"
+      frameTitle: "rgba(223, 241, 255, 0.94)",
+      pinColors: {
+        white: "#f2f8ff",
+        red: "#ff6f7a",
+        blue: "#52b6ff",
+        green: "#3de4a4",
+        purple: "#b987ff",
+        yellow: "#ffe06b",
+        cyan: "#45f1ff",
+        magenta: "#ff73d8"
+      }
     }
   },
   slate: {
@@ -103,7 +141,15 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--node-divider": "#3d4655",
       "--pin-label": "#c3cddd",
       "--selection": "#ff9a42",
-      "--wire-color": "#d8dee8"
+      "--wire-color": "#d8dee8",
+      "--pin-color-white": "#eceff6",
+      "--pin-color-red": "#e67a84",
+      "--pin-color-blue": "#78a8df",
+      "--pin-color-green": "#71be93",
+      "--pin-color-purple": "#af95dd",
+      "--pin-color-yellow": "#d7c070",
+      "--pin-color-cyan": "#6fc6d6",
+      "--pin-color-magenta": "#d68dbd"
     },
     export: {
       canvasBg: "#121519",
@@ -115,7 +161,17 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       pinLabel: "#c3cddd",
       divider: "#3d4655",
       frameStroke: "rgba(171, 189, 214, 0.5)",
-      frameTitle: "rgba(236, 241, 248, 0.95)"
+      frameTitle: "rgba(236, 241, 248, 0.95)",
+      pinColors: {
+        white: "#eceff6",
+        red: "#e67a84",
+        blue: "#78a8df",
+        green: "#71be93",
+        purple: "#af95dd",
+        yellow: "#d7c070",
+        cyan: "#6fc6d6",
+        magenta: "#d68dbd"
+      }
     }
   },
   blender: {
@@ -136,7 +192,15 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--node-divider": "#4b4f56",
       "--pin-label": "#d4d8e2",
       "--selection": "#ff9f3d",
-      "--wire-color": "#d7dbe4"
+      "--wire-color": "#d7dbe4",
+      "--pin-color-white": "#e7e9ec",
+      "--pin-color-red": "#ee7e77",
+      "--pin-color-blue": "#73a6d7",
+      "--pin-color-green": "#6ac48b",
+      "--pin-color-purple": "#b494d4",
+      "--pin-color-yellow": "#d9c16f",
+      "--pin-color-cyan": "#69c6cc",
+      "--pin-color-magenta": "#cf8fbd"
     },
     export: {
       canvasBg: "#1b1c1e",
@@ -148,7 +212,17 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       pinLabel: "#d4d8e2",
       divider: "#4b4f56",
       frameStroke: "rgba(198, 202, 210, 0.55)",
-      frameTitle: "rgba(241, 243, 247, 0.96)"
+      frameTitle: "rgba(241, 243, 247, 0.96)",
+      pinColors: {
+        white: "#e7e9ec",
+        red: "#ee7e77",
+        blue: "#73a6d7",
+        green: "#6ac48b",
+        purple: "#b494d4",
+        yellow: "#d9c16f",
+        cyan: "#69c6cc",
+        magenta: "#cf8fbd"
+      }
     }
   }
 };

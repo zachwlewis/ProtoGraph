@@ -13,7 +13,8 @@ function graphFromState(state: ReturnType<typeof useGraphStore.getState>): Graph
     selectedEdgeIds: state.selectedEdgeIds,
     viewport: state.viewport,
     singleInputPolicy: state.singleInputPolicy,
-    allowSameNodeConnections: state.allowSameNodeConnections
+    allowSameNodeConnections: state.allowSameNodeConnections,
+    blendWireColors: state.blendWireColors
   };
 }
 

@@ -16,8 +16,12 @@
         "y": 180,
         "width": 260,
         "height": 86,
-        "inputPinIds": ["pin_1"],
-        "outputPinIds": ["pin_2"]
+        "inputPinIds": [
+          "pin_1"
+        ],
+        "outputPinIds": [
+          "pin_2"
+        ]
       },
       "node_2": {
         "id": "node_2",
@@ -26,8 +30,12 @@
         "y": 180,
         "width": 260,
         "height": 86,
-        "inputPinIds": ["pin_3"],
-        "outputPinIds": ["pin_4"]
+        "inputPinIds": [
+          "pin_3"
+        ],
+        "outputPinIds": [
+          "pin_4"
+        ]
       }
     },
     "pins": {
@@ -37,8 +45,8 @@
         "direction": "input",
         "label": "In",
         "type": "Any In",
-        "color": "#58c4ff",
-        "shape": "circle"
+        "color": "blue",
+        "shape": "diamond"
       },
       "pin_2": {
         "id": "pin_2",
@@ -46,8 +54,8 @@
         "direction": "output",
         "label": "Out",
         "type": "Any Out",
-        "color": "#ffb655",
-        "shape": "circle"
+        "color": "blue",
+        "shape": "diamond"
       },
       "pin_3": {
         "id": "pin_3",
@@ -55,8 +63,8 @@
         "direction": "input",
         "label": "In",
         "type": "Any In",
-        "color": "#58c4ff",
-        "shape": "circle"
+        "color": "blue",
+        "shape": "diamond"
       },
       "pin_4": {
         "id": "pin_4",
@@ -64,8 +72,8 @@
         "direction": "output",
         "label": "Out",
         "type": "Any Out",
-        "color": "#ffb655",
-        "shape": "circle"
+        "color": "blue",
+        "shape": "diamond"
       }
     },
     "edges": {
@@ -73,11 +81,16 @@
         "id": "edge_1",
         "fromPinId": "pin_2",
         "toPinId": "pin_3",
-        "color": "#ffb655"
+        "color": "blue"
       }
     },
-    "order": ["node_1", "node_2"],
-    "edgeOrder": ["edge_1"],
+    "order": [
+      "node_1",
+      "node_2"
+    ],
+    "edgeOrder": [
+      "edge_1"
+    ],
     "selectedNodeIds": [],
     "selectedEdgeIds": [],
     "viewport": {
@@ -86,6 +99,7 @@
       "zoom": 1
     },
     "singleInputPolicy": true,
-    "allowSameNodeConnections": false
+    "allowSameNodeConnections": false,
+    "blendWireColors": true
   }
 }

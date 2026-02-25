@@ -24,7 +24,7 @@ function makePins(): { inputPins: PinModel[]; outputPins: PinModel[] } {
         nodeId: "n1",
         direction: "input",
         label: "In",
-        color: "#53c1ff",
+        color: "blue",
         type: "float",
         shape: "circle"
       }
@@ -35,7 +35,7 @@ function makePins(): { inputPins: PinModel[]; outputPins: PinModel[] } {
         nodeId: "n1",
         direction: "output",
         label: "Out",
-        color: "#ffba4f",
+        color: "yellow",
         type: "float",
         shape: "circle"
       }
@@ -46,8 +46,17 @@ function makePins(): { inputPins: PinModel[]; outputPins: PinModel[] } {
 function renderCard(overrides?: {
   onRenameNode?: (nodeId: string, title: string) => void;
   onRenamePin?: (pinId: string, label: string) => void;
+  connectedPinIds?: ReadonlySet<string>;
+  inputShape?: PinModel["shape"];
+  outputShape?: PinModel["shape"];
 }) {
   const { inputPins, outputPins } = makePins();
+  if (overrides?.inputShape) {
+    inputPins[0].shape = overrides.inputShape;
+  }
+  if (overrides?.outputShape) {
+    outputPins[0].shape = overrides.outputShape;
+  }
   const onRenameNode = overrides?.onRenameNode ?? vi.fn();
   const onRenamePin = overrides?.onRenamePin ?? vi.fn();
 
@@ -60,6 +69,7 @@ function renderCard(overrides?: {
       isConnecting={false}
       hoveredPinId={null}
       hoveredPinValid={false}
+      connectedPinIds={overrides?.connectedPinIds ?? new Set()}
       onMouseDown={vi.fn()}
       onPinMouseDown={vi.fn()}
       onPinMouseUp={vi.fn()}
@@ -111,5 +121,57 @@ describe("NodeCard inline editing", () => {
     await user.tab();
 
     expect(onRenamePin).toHaveBeenCalledWith("in1", "Input");
+  });
+
+  it("renders shape classes and connected state classes", () => {
+    const { container, rerender } = render(
+      <NodeCard
+        node={makeNode()}
+        inputPins={[{ ...makePins().inputPins[0], shape: "diamond" }]}
+        outputPins={[{ ...makePins().outputPins[0], shape: "execution" }]}
+        selected={false}
+        isConnecting={false}
+        hoveredPinId={null}
+        hoveredPinValid={false}
+        connectedPinIds={new Set(["in1"])}
+        onMouseDown={vi.fn()}
+        onPinMouseDown={vi.fn()}
+        onPinMouseUp={vi.fn()}
+        onPinMouseEnter={vi.fn()}
+        onPinMouseLeave={vi.fn()}
+        onRenameNode={vi.fn()}
+        onRenamePin={vi.fn()}
+      />
+    );
+
+    const pins = container.querySelectorAll(".pin-dot");
+    expect(pins[0].className).toContain("pin-shape-diamond");
+    expect(pins[0].className).toContain("is-connected");
+    expect(pins[1].className).toContain("pin-shape-execution");
+    expect(pins[1].className).toContain("is-unconnected");
+
+    rerender(
+      <NodeCard
+        node={makeNode()}
+        inputPins={[{ ...makePins().inputPins[0], shape: "circle" }]}
+        outputPins={[{ ...makePins().outputPins[0], shape: "square" }]}
+        selected={false}
+        isConnecting={false}
+        hoveredPinId={null}
+        hoveredPinValid={false}
+        connectedPinIds={new Set()}
+        onMouseDown={vi.fn()}
+        onPinMouseDown={vi.fn()}
+        onPinMouseUp={vi.fn()}
+        onPinMouseEnter={vi.fn()}
+        onPinMouseLeave={vi.fn()}
+        onRenameNode={vi.fn()}
+        onRenamePin={vi.fn()}
+      />
+    );
+
+    const nextPins = container.querySelectorAll(".pin-dot");
+    expect(nextPins[0].className).toContain("pin-shape-circle");
+    expect(nextPins[1].className).toContain("pin-shape-square");
   });
 });

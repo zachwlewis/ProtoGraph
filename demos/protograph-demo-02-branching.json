@@ -16,8 +16,12 @@
         "y": 140,
         "width": 260,
         "height": 86,
-        "inputPinIds": ["pin_1"],
-        "outputPinIds": ["pin_2"]
+        "inputPinIds": [
+          "pin_1"
+        ],
+        "outputPinIds": [
+          "pin_2"
+        ]
       },
       "node_2": {
         "id": "node_2",
@@ -26,8 +30,14 @@
         "y": 100,
         "width": 260,
         "height": 130,
-        "inputPinIds": ["pin_3", "pin_4", "pin_5"],
-        "outputPinIds": ["pin_6"]
+        "inputPinIds": [
+          "pin_3",
+          "pin_4",
+          "pin_5"
+        ],
+        "outputPinIds": [
+          "pin_6"
+        ]
       },
       "node_3": {
         "id": "node_3",
@@ -36,8 +46,13 @@
         "y": 290,
         "width": 260,
         "height": 108,
-        "inputPinIds": ["pin_7", "pin_8"],
-        "outputPinIds": ["pin_9"]
+        "inputPinIds": [
+          "pin_7",
+          "pin_8"
+        ],
+        "outputPinIds": [
+          "pin_9"
+        ]
       },
       "node_4": {
         "id": "node_4",
@@ -46,32 +61,163 @@
         "y": 190,
         "width": 260,
         "height": 108,
-        "inputPinIds": ["pin_10", "pin_11"],
-        "outputPinIds": ["pin_12"]
+        "inputPinIds": [
+          "pin_10",
+          "pin_11"
+        ],
+        "outputPinIds": [
+          "pin_12"
+        ]
       }
     },
     "pins": {
-      "pin_1": { "id": "pin_1", "nodeId": "node_1", "direction": "input", "label": "Seed", "type": "Float", "color": "#58c4ff", "shape": "diamond" },
-      "pin_2": { "id": "pin_2", "nodeId": "node_1", "direction": "output", "label": "Noise", "type": "Float", "color": "#ffb655", "shape": "circle" },
-      "pin_3": { "id": "pin_3", "nodeId": "node_2", "direction": "input", "label": "Value", "type": "Float", "color": "#58c4ff", "shape": "circle" },
-      "pin_4": { "id": "pin_4", "nodeId": "node_2", "direction": "input", "label": "Min", "type": "Float", "color": "#58c4ff", "shape": "square" },
-      "pin_5": { "id": "pin_5", "nodeId": "node_2", "direction": "input", "label": "Max", "type": "Float", "color": "#58c4ff", "shape": "square" },
-      "pin_6": { "id": "pin_6", "nodeId": "node_2", "direction": "output", "label": "Mapped", "type": "Float", "color": "#ffb655", "shape": "circle" },
-      "pin_7": { "id": "pin_7", "nodeId": "node_3", "direction": "input", "label": "Factor", "type": "Float", "color": "#58c4ff", "shape": "circle" },
-      "pin_8": { "id": "pin_8", "nodeId": "node_3", "direction": "input", "label": "Gradient", "type": "Gradient", "color": "#58c4ff", "shape": "diamond" },
-      "pin_9": { "id": "pin_9", "nodeId": "node_3", "direction": "output", "label": "Color", "type": "Color", "color": "#ffb655", "shape": "circle" },
-      "pin_10": { "id": "pin_10", "nodeId": "node_4", "direction": "input", "label": "Base Color", "type": "Color", "color": "#58c4ff", "shape": "circle" },
-      "pin_11": { "id": "pin_11", "nodeId": "node_4", "direction": "input", "label": "Roughness", "type": "Float", "color": "#58c4ff", "shape": "circle" },
-      "pin_12": { "id": "pin_12", "nodeId": "node_4", "direction": "output", "label": "Out", "type": "Any Out", "color": "#ffb655", "shape": "circle" }
+      "pin_1": {
+        "id": "pin_1",
+        "nodeId": "node_1",
+        "direction": "input",
+        "label": "Seed",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_2": {
+        "id": "pin_2",
+        "nodeId": "node_1",
+        "direction": "output",
+        "label": "Noise",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_3": {
+        "id": "pin_3",
+        "nodeId": "node_2",
+        "direction": "input",
+        "label": "Value",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_4": {
+        "id": "pin_4",
+        "nodeId": "node_2",
+        "direction": "input",
+        "label": "Min",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_5": {
+        "id": "pin_5",
+        "nodeId": "node_2",
+        "direction": "input",
+        "label": "Max",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_6": {
+        "id": "pin_6",
+        "nodeId": "node_2",
+        "direction": "output",
+        "label": "Mapped",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_7": {
+        "id": "pin_7",
+        "nodeId": "node_3",
+        "direction": "input",
+        "label": "Factor",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_8": {
+        "id": "pin_8",
+        "nodeId": "node_3",
+        "direction": "input",
+        "label": "Gradient",
+        "type": "Gradient",
+        "color": "blue",
+        "shape": "diamond"
+      },
+      "pin_9": {
+        "id": "pin_9",
+        "nodeId": "node_3",
+        "direction": "output",
+        "label": "Color",
+        "type": "Color",
+        "color": "blue",
+        "shape": "circle"
+      },
+      "pin_10": {
+        "id": "pin_10",
+        "nodeId": "node_4",
+        "direction": "input",
+        "label": "Base Color",
+        "type": "Color",
+        "color": "blue",
+        "shape": "circle"
+      },
+      "pin_11": {
+        "id": "pin_11",
+        "nodeId": "node_4",
+        "direction": "input",
+        "label": "Roughness",
+        "type": "Float",
+        "color": "green",
+        "shape": "circle"
+      },
+      "pin_12": {
+        "id": "pin_12",
+        "nodeId": "node_4",
+        "direction": "output",
+        "label": "Out",
+        "type": "Any Out",
+        "color": "blue",
+        "shape": "diamond"
+      }
     },
     "edges": {
-      "edge_1": { "id": "edge_1", "fromPinId": "pin_2", "toPinId": "pin_3", "color": "#ffb655" },
-      "edge_2": { "id": "edge_2", "fromPinId": "pin_6", "toPinId": "pin_7", "color": "#ffb655" },
-      "edge_3": { "id": "edge_3", "fromPinId": "pin_9", "toPinId": "pin_10", "color": "#ffb655" },
-      "edge_4": { "id": "edge_4", "fromPinId": "pin_6", "toPinId": "pin_11", "color": "#ffb655" }
+      "edge_1": {
+        "id": "edge_1",
+        "fromPinId": "pin_2",
+        "toPinId": "pin_3",
+        "color": "green"
+      },
+      "edge_2": {
+        "id": "edge_2",
+        "fromPinId": "pin_6",
+        "toPinId": "pin_7",
+        "color": "green"
+      },
+      "edge_3": {
+        "id": "edge_3",
+        "fromPinId": "pin_9",
+        "toPinId": "pin_10",
+        "color": "blue"
+      },
+      "edge_4": {
+        "id": "edge_4",
+        "fromPinId": "pin_6",
+        "toPinId": "pin_11",
+        "color": "green"
+      }
     },
-    "order": ["node_1", "node_2", "node_3", "node_4"],
-    "edgeOrder": ["edge_1", "edge_2", "edge_3", "edge_4"],
+    "order": [
+      "node_1",
+      "node_2",
+      "node_3",
+      "node_4"
+    ],
+    "edgeOrder": [
+      "edge_1",
+      "edge_2",
+      "edge_3",
+      "edge_4"
+    ],
     "selectedNodeIds": [],
     "selectedEdgeIds": [],
     "viewport": {
@@ -80,6 +226,7 @@
       "zoom": 0.95
     },
     "singleInputPolicy": true,
-    "allowSameNodeConnections": false
+    "allowSameNodeConnections": false,
+    "blendWireColors": true
   }
 }

@@ -2,7 +2,8 @@ import { layoutTokens } from "../theme/layoutTokens";
 
 export type PinDirection = "input" | "output";
 
-export type PinShape = "circle" | "diamond" | "square";
+export type PinShape = "circle" | "diamond" | "square" | "execution";
+export type PinColor = "white" | "red" | "blue" | "green" | "purple" | "yellow" | "cyan" | "magenta";
 
 export type PinModel = {
   id: string;
@@ -10,7 +11,7 @@ export type PinModel = {
   direction: PinDirection;
   label: string;
   type: string;
-  color: string;
+  color: PinColor;
   shape: PinShape;
 };
 
@@ -60,6 +61,7 @@ export type GraphModel = {
   viewport: Viewport;
   singleInputPolicy: boolean;
   allowSameNodeConnections: boolean;
+  blendWireColors: boolean;
 };
 
 export type AppSettings = {

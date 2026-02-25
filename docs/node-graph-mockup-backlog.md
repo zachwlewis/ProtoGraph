@@ -141,7 +141,7 @@ type PinModel = {
   label: string;
   type: string;
   color: string;
-  shape: "circle" | "diamond" | "square";
+  shape: "circle" | "diamond" | "square" | "execution";
 };
 
 type EdgeModel = {

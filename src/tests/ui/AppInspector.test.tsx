@@ -1,6 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../App";
+import { PIN_COLOR_OPTIONS } from "../../editor/theme/pinPalette";
 import { useGraphStore } from "../../editor/store/useGraphStore";
 
 describe("App inspector accessibility", () => {
@@ -160,5 +161,46 @@ describe("App inspector accessibility", () => {
     expect(liveOrder[1]).toBe(beforeOrder[0]);
 
     fireEvent.dragEnd(firstHandle!, { dataTransfer });
+  });
+
+  it("keeps advanced pin controls collapsed by default and applies shape/color edits", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+
+    const nodeCard = container.querySelector(".node-card") as HTMLElement | null;
+    expect(nodeCard).toBeTruthy();
+    await user.click(nodeCard!);
+
+    await waitFor(() => {
+      expect(container.querySelector(".inspector-block")).toBeTruthy();
+    });
+
+    expect(container.querySelector(".pin-advanced-content")).toBeNull();
+    const toggle = container.querySelector(".pin-advanced-toggle") as HTMLButtonElement | null;
+    expect(toggle).toBeTruthy();
+    await user.click(toggle!);
+    expect(container.querySelector(".pin-advanced-content")).toBeTruthy();
+
+    const selectedNodeId = useGraphStore.getState().selectedNodeIds[0];
+    const pinId = selectedNodeId ? useGraphStore.getState().nodes[selectedNodeId].inputPinIds[0] : undefined;
+    expect(pinId).toBeTruthy();
+    if (!pinId) {
+      throw new Error("Expected an input pin id");
+    }
+
+    const executionShapeBtn = container.querySelector(
+      '.pin-shape-option[aria-label="Pin shape execution"]'
+    ) as HTMLButtonElement | null;
+    expect(executionShapeBtn).toBeTruthy();
+    await user.click(executionShapeBtn!);
+    expect(useGraphStore.getState().pins[pinId].shape).toBe("execution");
+
+    const selectedColor = PIN_COLOR_OPTIONS[1];
+    const colorButton = container.querySelector(
+      `[aria-label="Set pin color ${selectedColor}"]`
+    ) as HTMLButtonElement | null;
+    expect(colorButton).toBeTruthy();
+    await user.click(colorButton!);
+    expect(useGraphStore.getState().pins[pinId].color).toBe(selectedColor);
   });
 });

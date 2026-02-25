@@ -13,6 +13,8 @@ import {
   replaceGraphState,
   removePin,
   reorderPinInNode,
+  setPinColor,
+  setPinShape,
   setSelectionByMarquee,
   setAllowSameNodeConnections,
   setSelectedEdges,
@@ -76,10 +78,10 @@ describe("graphMutations", () => {
     const outPin = next.pins[next.nodes[nodeId].outputPinIds[0]];
 
     expect(inPin.type).toBe("Any In");
-    expect(inPin.color).toBe("#58c4ff");
+    expect(inPin.color).toBe("blue");
     expect(inPin.shape).toBe("circle");
     expect(outPin.type).toBe("Any Out");
-    expect(outPin.color).toBe("#ffb655");
+    expect(outPin.color).toBe("yellow");
     expect(outPin.shape).toBe("circle");
   });
 
@@ -234,6 +236,36 @@ describe("graphMutations", () => {
     expect(renamedPin.pins[pinId].label).toBe("Source");
   });
 
+  it("updates pin shape and color", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const pinId = withNode.nodes[nodeId].inputPinIds[0];
+
+    const withShape = setPinShape(withNode, pinId, "execution");
+    expect(withShape.pins[pinId].shape).toBe("execution");
+
+    const withColor = setPinColor(withShape, pinId, "red");
+    expect(withColor.pins[pinId].color).toBe("red");
+  });
+
+  it("no-ops pin style updates when pin is missing or unchanged", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const pinId = withNode.nodes[nodeId].inputPinIds[0];
+
+    const unchangedShape = setPinShape(withNode, pinId, withNode.pins[pinId].shape);
+    expect(unchangedShape).toBe(withNode);
+
+    const unchangedColor = setPinColor(withNode, pinId, withNode.pins[pinId].color);
+    expect(unchangedColor).toBe(withNode);
+
+    const missingShape = setPinShape(withNode, "missing", "square");
+    expect(missingShape).toBe(withNode);
+
+    const missingColor = setPinColor(withNode, "missing", "white");
+    expect(missingColor).toBe(withNode);
+  });
+
   it("ignores empty or unchanged rename values", () => {
     const base = makeGraph();
     const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
@@ -346,6 +378,25 @@ describe("graphMutations", () => {
     expect(replaced.nodes.rogue.inputPinIds).toEqual([]);
     expect(replaced.edges.edge_bad).toBeUndefined();
     expect(replaced.edgeOrder).toEqual([]);
+  });
+
+  it("sanitizes unknown pin shapes to circle when replacing graph state", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Shape" });
+    const pinId = withNode.nodes[nodeId].inputPinIds[0];
+    const malformed = {
+      ...withNode,
+      pins: {
+        ...withNode.pins,
+        [pinId]: {
+          ...withNode.pins[pinId],
+          shape: "hexagon"
+        }
+      }
+    };
+
+    const replaced = replaceGraphState(base, malformed as typeof withNode);
+    expect(replaced.pins[pinId].shape).toBe("circle");
   });
 
   it("rebases id sequences after replacing graph state", () => {

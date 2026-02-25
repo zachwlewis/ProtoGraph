@@ -17,6 +17,14 @@
   --toolbar-bg: #1f2631;
   --selection: #ff8f2d;
   --wire-color: #c8d2e2;
+  --pin-color-white: #f0f5ff;
+  --pin-color-red: #ff6d7a;
+  --pin-color-blue: #6aa8ff;
+  --pin-color-green: #56d08f;
+  --pin-color-purple: #b58bff;
+  --pin-color-yellow: #ffd166;
+  --pin-color-cyan: #63e7ff;
+  --pin-color-magenta: #ff7ad9;
   --ui-font-size: 13px;
 }
 
@@ -414,7 +422,7 @@ input[type="checkbox"] {
   display: block;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
-  padding: 0;
+  padding: 0 0 6px;
   min-height: 34px;
 }
 
@@ -423,9 +431,9 @@ input[type="checkbox"] {
 }
 
 .pin-handle {
-  width: 18px;
-  min-width: 18px;
-  height: 24px;
+  width: 22px;
+  min-width: 22px;
+  height: 20px;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -441,8 +449,7 @@ input[type="checkbox"] {
   -webkit-appearance: none;
   position: absolute;
   left: 6px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 6px;
   z-index: 1;
 }
 
@@ -459,16 +466,12 @@ input[type="checkbox"] {
   border: 0;
 }
 
-.pin-handle .material-symbols-outlined {
-  font-size: 15px;
-}
-
 .inspector-pin-row .pin-edit-input {
   border: 0;
   background: transparent;
   width: 100%;
   height: 32px;
-  padding: 6px 36px 6px 32px;
+  padding: 6px 56px 6px 32px;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
@@ -476,6 +479,34 @@ input[type="checkbox"] {
 
 .inspector-pin-row .pin-edit-input:focus {
   outline: none;
+}
+
+.pin-advanced-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 30px;
+  top: 6px;
+  padding: 0;
+  z-index: 1;
+}
+
+.pin-advanced-toggle .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.pin-advanced-toggle:hover,
+.pin-advanced-toggle.is-open {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .pin-delete-btn {
@@ -491,8 +522,7 @@ input[type="checkbox"] {
   justify-content: center;
   position: absolute;
   right: 7px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 6px;
   padding: 0;
   z-index: 1;
 }
@@ -522,6 +552,121 @@ input[type="checkbox"] {
 
 .pin-row-grouped {
   transition: border-color 120ms ease, opacity 120ms ease, background 120ms ease;
+}
+
+.pin-advanced-content {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--panel-border);
+  padding: 8px 8px 2px 32px;
+}
+
+.pin-advanced-field {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.pin-advanced-field label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pin-shape-toggle {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.pin-shape-option {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pin-shape-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  overflow: visible;
+}
+
+.pin-shape-icon-shape {
+  fill: transparent;
+  stroke: var(--pin-shape-icon-color, var(--text));
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pin-shape-option:hover {
+  color: var(--text);
+}
+
+.pin-shape-option.is-active {
+  color: var(--text);
+}
+
+.pin-shape-icon-shape.is-filled {
+  fill: var(--pin-shape-icon-color, var(--text));
+}
+
+.pin-shape-icon-shape.is-hollow {
+  fill: transparent;
+}
+
+.pin-drag-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  overflow: visible;
+}
+
+.pin-color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.pin-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pin-color-swatch.is-selected {
+  border-color: #d8e7ff;
+  outline: 1px solid rgba(216, 231, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.pin-color-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pin-color-custom::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--pin-custom-color, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 .pin-row-grouped.is-dragging {
@@ -882,43 +1027,81 @@ input[type="checkbox"] {
 }
 
 .pin-row-input {
-  padding-left: calc(var(--pin-radius) + var(--pin-label-gap));
+  padding-left: calc(var(--pin-diameter) * 1.25 + var(--pin-label-gap));
 }
 
 .pin-row-output {
   justify-content: flex-end;
-  padding-right: calc(var(--pin-radius) + var(--pin-label-gap));
+  padding-right: calc(var(--pin-diameter) * 1.25 + var(--pin-label-gap));
 }
 
 .pin-dot {
-  width: var(--pin-diameter);
-  height: var(--pin-diameter);
+  --pin-size-x: calc(var(--pin-diameter) * 1.25);
+  --pin-size-y: calc(var(--pin-diameter) * 1.25);
+  width: var(--pin-size-x);
+  height: var(--pin-size-y);
   border: 0;
-  border-radius: 999px;
+  background: none;
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
+  transform-origin: center;
   display: block;
   cursor: crosshair;
   padding: 0;
+  transition: box-shadow 120ms ease, outline-color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.pin-dot.is-connected {
+  background: none;
+}
+
+.pin-dot.is-unconnected {
+  background: none;
+}
+
+.pin-dot-glyph {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.pin-dot-shape {
+  fill: transparent;
+  stroke: var(--pin-color);
+  stroke-width: 14;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.pin-dot.is-connected .pin-dot-shape {
+  fill: var(--pin-color);
+}
+
+.pin-dot.pin-shape-execution {
+  --pin-size-x: var(--pin-diameter);
+  --pin-size-y: var(--pin-diameter);
 }
 
 .pin-row-input .pin-dot {
-  left: calc(-1 * var(--pin-radius));
+  left: 6px;
 }
 
 .pin-row-output .pin-dot {
-  right: calc(-1 * var(--pin-radius));
+  right: 6px;
 }
 
 .pin-dot.is-hover-valid {
   outline: 2px solid #79ec8f;
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(121, 236, 143, 0.2);
 }
 
 .pin-dot.is-hover-invalid {
   outline: 2px solid #ff5b67;
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(255, 91, 103, 0.2);
 }
 
 .hidden-file-input {

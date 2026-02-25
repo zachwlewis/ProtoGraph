@@ -1,8 +1,9 @@
 import { getPinCenter } from "../editor/model/graphMutations";
-import type { GraphModel, NodeModel, ThemePresetId } from "../editor/model/types";
+import type { GraphModel, NodeModel, PinColor, PinModel, ThemePresetId } from "../editor/model/types";
 import { NODE_TITLE_HEIGHT, PIN_ANCHOR_INSET, PIN_ROW_HEIGHT, PIN_TOP_PADDING } from "../editor/model/types";
 import { layoutTokens } from "../editor/theme/layoutTokens";
 import { getThemePreset } from "../editor/theme/themePresets";
+import { tracePinShapePath } from "../editor/utils/pinShapeGeometry";
 
 type ExportMode = "viewport" | "full";
 type ExportOptions = {
@@ -53,7 +54,7 @@ export function exportGraphToPng(
     clipRoundedRect(ctx, frame.x, frame.y, frame.width, frame.height, frame.radius);
     drawBackground(ctx, metrics.outputWidth, metrics.outputHeight, theme.export.canvasBg);
     drawGrid(ctx, metrics.outputWidth, metrics.outputHeight, 40, theme.export.grid);
-    drawEdges(ctx, graph, offsetX, offsetY, theme.export.wire);
+    drawEdges(ctx, graph, offsetX, offsetY, theme.export.wire, theme, graph.blendWireColors);
     drawNodes(ctx, graph, offsetX, offsetY, theme);
     ctx.restore();
     drawFramePreset(
@@ -67,7 +68,7 @@ export function exportGraphToPng(
   } else {
     drawBackground(ctx, metrics.outputWidth, metrics.outputHeight, theme.export.canvasBg);
     drawGrid(ctx, metrics.outputWidth, metrics.outputHeight, 40, theme.export.grid);
-    drawEdges(ctx, graph, offsetX, offsetY, theme.export.wire);
+    drawEdges(ctx, graph, offsetX, offsetY, theme.export.wire, theme, graph.blendWireColors);
     drawNodes(ctx, graph, offsetX, offsetY, theme);
   }
 
@@ -173,7 +174,9 @@ function drawEdges(
   graph: GraphModel,
   offsetX: number,
   offsetY: number,
-  wireColor: string
+  wireColor: string,
+  theme: ReturnType<typeof getThemePreset>,
+  blendWireColors: boolean
 ): void {
   for (const edgeId of graph.edgeOrder) {
     const edge = graph.edges[edgeId];
@@ -192,11 +195,20 @@ function drawEdges(
     const y2 = to.y + offsetY;
     const dx = Math.abs(x2 - x1);
     const c = Math.max(48, dx * 0.45);
+    const fromPin = graph.pins[edge.fromPinId];
+    const toPin = graph.pins[edge.toPinId];
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.bezierCurveTo(x1 + c, y1, x2 - c, y2, x2, y2);
-    ctx.strokeStyle = wireColor;
+    if (blendWireColors && fromPin && toPin && typeof ctx.createLinearGradient === "function") {
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      gradient.addColorStop(0, resolvePinColor(fromPin.color, theme));
+      gradient.addColorStop(1, resolvePinColor(toPin.color, theme));
+      ctx.strokeStyle = gradient;
+    } else {
+      ctx.strokeStyle = blendWireColors ? wireColor : theme.export.pinColors.white;
+    }
     ctx.lineWidth = 2.4;
     ctx.stroke();
   }
@@ -209,6 +221,7 @@ function drawNodes(
   offsetY: number,
   theme: ReturnType<typeof getThemePreset>
 ): void {
+  const connectedPinIds = getConnectedPinIds(graph);
   for (const nodeId of graph.order) {
     const node = graph.nodes[nodeId];
     if (!node) {
@@ -241,7 +254,7 @@ function drawNodes(
     ctx.lineTo(x + node.width, y + NODE_TITLE_HEIGHT);
     ctx.stroke();
 
-    drawNodePins(ctx, graph, node, x, y, theme.export.pinLabel);
+    drawNodePins(ctx, graph, node, x, y, theme.export.pinLabel, connectedPinIds, theme);
   }
 }
 
@@ -251,7 +264,9 @@ function drawNodePins(
   node: NodeModel,
   x: number,
   y: number,
-  pinLabelColor: string
+  pinLabelColor: string,
+  connectedPinIds: ReadonlySet<string>,
+  theme: ReturnType<typeof getThemePreset>
 ): void {
   ctx.font = `${layoutTokens.text.pinWeight} ${layoutTokens.text.pinSize}px ${layoutTokens.text.family}`;
   ctx.textBaseline = "middle";
@@ -266,10 +281,7 @@ function drawNodePins(
     const cy = y + NODE_TITLE_HEIGHT + PIN_TOP_PADDING + PIN_ROW_HEIGHT * i + PIN_ROW_HEIGHT / 2;
     const cx = x + PIN_ANCHOR_INSET;
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, pinRadius, 0, Math.PI * 2);
-    ctx.fillStyle = pin.color;
-    ctx.fill();
+    drawPinGlyph(ctx, pin, cx, cy, pinRadius, connectedPinIds.has(pin.id), theme);
 
     ctx.fillStyle = pinLabelColor;
     ctx.fillText(pin.label, cx + pinRadius + labelGap, cy);
@@ -283,15 +295,48 @@ function drawNodePins(
     const cy = y + NODE_TITLE_HEIGHT + PIN_TOP_PADDING + PIN_ROW_HEIGHT * i + PIN_ROW_HEIGHT / 2;
     const cx = x + node.width - PIN_ANCHOR_INSET;
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, pinRadius, 0, Math.PI * 2);
-    ctx.fillStyle = pin.color;
-    ctx.fill();
+    drawPinGlyph(ctx, pin, cx, cy, pinRadius, connectedPinIds.has(pin.id), theme);
 
     const labelWidth = ctx.measureText(pin.label).width;
     ctx.fillStyle = pinLabelColor;
     ctx.fillText(pin.label, cx - pinRadius - labelGap - labelWidth, cy);
   }
+}
+
+function drawPinGlyph(
+  ctx: CanvasRenderingContext2D,
+  pin: Pick<PinModel, "shape" | "color">,
+  cx: number,
+  cy: number,
+  radius: number,
+  connected: boolean,
+  theme: ReturnType<typeof getThemePreset>
+): void {
+  const resolvedColor = resolvePinColor(pin.color, theme);
+  ctx.beginPath();
+  tracePinShapePath(ctx, pin.shape, cx, cy, radius);
+  if (connected) {
+    ctx.fillStyle = resolvedColor;
+    ctx.fill();
+  }
+  ctx.strokeStyle = resolvedColor;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke();
+}
+
+function getConnectedPinIds(graph: GraphModel): Set<string> {
+  const ids = new Set<string>();
+  for (const edge of Object.values(graph.edges)) {
+    ids.add(edge.fromPinId);
+    ids.add(edge.toPinId);
+  }
+  return ids;
+}
+
+function resolvePinColor(color: PinColor, theme: ReturnType<typeof getThemePreset>): string {
+  return theme.export.pinColors[color];
 }
 
 function drawRoundedRect(
@@ -384,5 +429,9 @@ function clipRoundedRect(
 
 export const __testables = {
   resolvePngFilename,
-  computeOutputMetrics
+  computeOutputMetrics,
+  drawPinGlyph,
+  tracePinShapePath,
+  getConnectedPinIds,
+  resolvePinColor
 };

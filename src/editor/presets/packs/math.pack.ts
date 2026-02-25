@@ -11,9 +11,9 @@ export const mathNodePack: NodePack = {
       category: "Scalar",
       tags: ["+", "number"],
       pins: [
-        { label: "A", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "B", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "Result", direction: "output", type: "Float", color: "#ffb655" }
+        { label: "A", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "B", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "Result", direction: "output", type: "Float", color: "green", shape: "circle" }
       ]
     },
     {
@@ -22,9 +22,9 @@ export const mathNodePack: NodePack = {
       category: "Scalar",
       tags: ["*", "number"],
       pins: [
-        { label: "A", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "B", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "Result", direction: "output", type: "Float", color: "#ffb655" }
+        { label: "A", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "B", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "Result", direction: "output", type: "Float", color: "green", shape: "circle" }
       ]
     },
     {
@@ -33,10 +33,10 @@ export const mathNodePack: NodePack = {
       category: "Interpolation",
       tags: ["blend", "interpolate"],
       pins: [
-        { label: "A", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "B", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "Alpha", direction: "input", type: "Float", color: "#58c4ff" },
-        { label: "Result", direction: "output", type: "Float", color: "#ffb655" }
+        { label: "A", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "B", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "Alpha", direction: "input", type: "Float", color: "green", shape: "circle" },
+        { label: "Result", direction: "output", type: "Float", color: "green", shape: "circle" }
       ]
     }
   ]
