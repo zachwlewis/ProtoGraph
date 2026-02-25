@@ -1,9 +1,87 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../App";
 import { useGraphStore } from "../../editor/store/useGraphStore";
 
 describe("App inspector accessibility", () => {
+  it("shows node inspector only for single selection and layout card only when enough nodes are selected", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".right-floating-node")).toBeNull();
+    expect(container.querySelector(".right-floating-layout")).toBeNull();
+
+    const nodeCard = container.querySelector(".node-card") as HTMLElement | null;
+    expect(nodeCard).toBeTruthy();
+    await user.click(nodeCard!);
+
+    await waitFor(() => {
+      expect(container.querySelector(".right-floating-node")).toBeTruthy();
+    });
+    expect(container.querySelector(".right-floating-layout")).toBeNull();
+
+    const store = useGraphStore.getState();
+    const firstSelectedId = store.selectedNodeIds[0];
+    expect(firstSelectedId).toBeTruthy();
+
+    let secondNodeId = "";
+    act(() => {
+      secondNodeId = useGraphStore.getState().addNodeAt(320, 180, "Second Node");
+      useGraphStore.getState().setSelection([firstSelectedId, secondNodeId]);
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector(".right-floating-layout")).toBeTruthy();
+    });
+    expect(container.querySelector(".right-floating-node")).toBeNull();
+  });
+
+  it("shows all layout actions when visible and disables only incompatible actions", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+
+    const nodeCard = container.querySelector(".node-card") as HTMLElement | null;
+    expect(nodeCard).toBeTruthy();
+    await user.click(nodeCard!);
+
+    await waitFor(() => {
+      expect(container.querySelector(".inspector-block")).toBeTruthy();
+    });
+
+    const selectedNodeId = useGraphStore.getState().selectedNodeIds[0];
+    expect(selectedNodeId).toBeTruthy();
+
+    let secondNodeId = "";
+    act(() => {
+      secondNodeId = useGraphStore.getState().addNodeAt(420, 240, "Third Node");
+      useGraphStore.getState().setSelection([selectedNodeId, secondNodeId]);
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector(".right-floating-layout")).toBeTruthy();
+    });
+
+    const layoutButtons = container.querySelectorAll(".right-floating-layout .layout-grid .layout-icon-btn");
+    expect(layoutButtons).toHaveLength(8);
+
+    const alignLeft = container.querySelector(
+      '.right-floating-layout button[aria-label="Align left"]'
+    ) as HTMLButtonElement | null;
+    const distributeHorizontal = container.querySelector(
+      '.right-floating-layout button[aria-label="Distribute horizontal"]'
+    ) as HTMLButtonElement | null;
+    const distributeVertical = container.querySelector(
+      '.right-floating-layout button[aria-label="Distribute vertical"]'
+    ) as HTMLButtonElement | null;
+
+    expect(alignLeft).toBeTruthy();
+    expect(distributeHorizontal).toBeTruthy();
+    expect(distributeVertical).toBeTruthy();
+    expect(alignLeft?.disabled).toBe(false);
+    expect(distributeHorizontal?.disabled).toBe(true);
+    expect(distributeVertical?.disabled).toBe(true);
+  });
+
   it("tabs from node title input to pin input while skipping handle and delete buttons", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);

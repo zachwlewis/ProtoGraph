@@ -810,6 +810,10 @@ export function App() {
     { kind: "distribute-h" as const, icon: "horizontal_distribute", label: "Distribute horizontal", min: 3 },
     { kind: "distribute-v" as const, icon: "vertical_distribute", label: "Distribute vertical", min: 3 }
   ];
+  const selectedCount = selectedNodeIds.length;
+  const showNodeInspector = selectedCount === 1 && Boolean(selectedNode);
+  const minLayoutSelection = Math.min(...layoutActions.map((action) => action.min));
+  const showLayoutCard = selectedCount >= minLayoutSelection;
 
   if (!library || !activeSavedGraph) {
     return null;
@@ -956,265 +960,282 @@ export function App() {
           onResolveNavigationMode={onResolveNavigationMode}
           onConnectError={(message) => pushNotice(message, "error")}
         />
-      </main>
+        {showLayoutCard || showNodeInspector ? (
+          <div className="right-floating-stack">
+            {showLayoutCard ? (
+              <section className="right-floating-card right-floating-layout" aria-label="Layout tools">
+                <header className="right-floating-card-header">
+                  <h3>Layout</h3>
+                </header>
+                <div className="right-floating-card-content">
+                  <div className="layout-grid">
+                    {layoutActions.map((action) => {
+                      const enabled = selectedCount >= action.min;
+                      return (
+                        <button
+                          key={action.kind}
+                          className="icon-button layout-icon-btn"
+                          title={action.label}
+                          aria-label={action.label}
+                          disabled={!enabled}
+                          onClick={() => {
+                            if (action.kind === "distribute-h") {
+                              distributeSelection("horizontal");
+                              return;
+                            }
+                            if (action.kind === "distribute-v") {
+                              distributeSelection("vertical");
+                              return;
+                            }
+                            alignSelection(action.kind);
+                          }}
+                        >
+                          <span className="material-symbols-outlined">{action.icon}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
-      <aside className="right-panel">
-        <h3>Layout</h3>
-        <div className="layout-grid">
-          {layoutActions.map((action) => {
-            const enabled = selectedNodeIds.length >= action.min;
-            return (
-              <button
-                key={action.kind}
-                className="icon-button layout-icon-btn"
-                title={action.label}
-                aria-label={action.label}
-                disabled={!enabled}
-                onClick={() => {
-                  if (action.kind === "distribute-h") {
-                    distributeSelection("horizontal");
-                    return;
-                  }
-                  if (action.kind === "distribute-v") {
-                    distributeSelection("vertical");
-                    return;
-                  }
-                  alignSelection(action.kind);
-                }}
-              >
-                <span className="material-symbols-outlined">{action.icon}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <h3>Node</h3>
-        {selectedNode ? (
-          <div className="inspector-block" key={selectedNode.id}>
-            <input
-              value={inspectorNodeDraft}
-              onChange={(event) => setInspectorNodeDraft(event.target.value)}
-              onFocus={(event) => event.currentTarget.select()}
-              onBlur={(event) =>
-                commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title)
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title);
-                  event.currentTarget.blur();
-                } else if (event.key === "Escape") {
-                  setInspectorNodeDraft(selectedNode.title);
-                  event.currentTarget.blur();
-                }
-              }}
-            />
-
-            <section className="pin-group">
-              <header>Inputs</header>
-              <div className="pin-list grouped-pin-list">
-                <div
-                  className="pin-drop-edge"
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    onPinListDragOver(selectedNode.id, "input", "start");
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    finalizePinDrop();
-                  }}
-                />
-                {selectedNode.inputPinIds.map((pinId, index) => {
-                  const pin = pins[pinId];
-                  if (!pin) {
-                    return null;
-                  }
-                  return (
-                    <div
-                      className={`inspector-pin-row pin-row-grouped ${
-                        draggedPin?.pinId === pinId ? "is-dragging" : ""
-                      } ${
-                        pinDropTarget?.nodeId === selectedNode.id &&
-                        pinDropTarget?.direction === "input" &&
-                        pinDropTarget?.index === index
-                          ? "is-drop-target"
-                          : ""
-                      }`}
-                      key={pin.id}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        onPinDragOver(selectedNode.id, "input", index);
-                      }}
-                      onDrop={(event) => onPinDrop(event, selectedNode.id, "input")}
-                    >
-                      <button
-                        className="pin-handle"
-                        title="Reorder input"
-                        aria-label="Reorder input"
-                        tabIndex={-1}
-                        draggable
-                        onDragStart={(event) =>
-                          onPinHandleDragStart(selectedNode.id, "input", index, pin.id, event)
-                        }
-                        onDragEnd={onPinDragEnd}
-                      >
-                        <span className="material-symbols-outlined">drag_indicator</span>
-                      </button>
-                      <input
-                        className="pin-edit-input"
-                        value={inspectorPinDrafts[pin.id] ?? pin.label}
-                        onChange={(event) =>
-                          setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
-                        }
-                        onFocus={(event) => event.currentTarget.select()}
-                        onDrop={(event) => {
+            {showNodeInspector && selectedNode ? (
+              <section className="right-floating-card right-floating-node" aria-label="Node inspector">
+                <header className="right-floating-card-header">
+                  <h3>Node</h3>
+                </header>
+                <div className="right-floating-card-content">
+                  <div className="inspector-block" key={selectedNode.id}>
+                    <input
+                      value={inspectorNodeDraft}
+                      onChange={(event) => setInspectorNodeDraft(event.target.value)}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onBlur={(event) =>
+                        commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
                           event.preventDefault();
-                          event.stopPropagation();
-                        }}
-                        onBlur={(event) =>
-                          commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
+                          commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title);
+                          event.currentTarget.blur();
+                        } else if (event.key === "Escape") {
+                          setInspectorNodeDraft(selectedNode.title);
+                          event.currentTarget.blur();
                         }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
-                            event.currentTarget.blur();
-                          } else if (event.key === "Escape") {
-                            setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
-                            event.currentTarget.blur();
-                          }
-                        }}
-                      />
-                      <button
-                        className="pin-delete-btn"
-                        onClick={() => removePin(pin.id)}
-                        title="Remove input"
-                        aria-label="Remove input"
-                        tabIndex={-1}
-                      >
-                        <span className="material-symbols-outlined">delete</span>
-                      </button>
-                    </div>
-                  );
-                })}
-                <div
-                  className="pin-drop-edge"
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    onPinListDragOver(selectedNode.id, "input", "end");
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    finalizePinDrop();
-                  }}
-                />
-                <button className="pin-add-btn" onClick={() => addPin(selectedNode.id, "input")}>Add Input</button>
-              </div>
-            </section>
-
-            <section className="pin-group">
-              <header>Outputs</header>
-              <div className="pin-list grouped-pin-list">
-                <div
-                  className="pin-drop-edge"
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    onPinListDragOver(selectedNode.id, "output", "start");
-                  }}
-                  onDrop={finalizePinDrop}
-                />
-                {selectedNode.outputPinIds.map((pinId, index) => {
-                  const pin = pins[pinId];
-                  if (!pin) {
-                    return null;
-                  }
-                  return (
-                    <div
-                      className={`inspector-pin-row pin-row-grouped ${
-                        draggedPin?.pinId === pinId ? "is-dragging" : ""
-                      } ${
-                        pinDropTarget?.nodeId === selectedNode.id &&
-                        pinDropTarget?.direction === "output" &&
-                        pinDropTarget?.index === index
-                          ? "is-drop-target"
-                          : ""
-                      }`}
-                      key={pin.id}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        onPinDragOver(selectedNode.id, "output", index);
                       }}
-                      onDrop={(event) => onPinDrop(event, selectedNode.id, "output")}
-                    >
-                      <button
-                        className="pin-handle"
-                        title="Reorder output"
-                        aria-label="Reorder output"
-                        tabIndex={-1}
-                        draggable
-                        onDragStart={(event) =>
-                          onPinHandleDragStart(selectedNode.id, "output", index, pin.id, event)
-                        }
-                        onDragEnd={onPinDragEnd}
-                      >
-                        <span className="material-symbols-outlined">drag_indicator</span>
-                      </button>
-                      <input
-                        className="pin-edit-input"
-                        value={inspectorPinDrafts[pin.id] ?? pin.label}
-                        onChange={(event) =>
-                          setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
-                        }
-                        onFocus={(event) => event.currentTarget.select()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                        }}
-                        onBlur={(event) =>
-                          commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
+                    />
+
+                    <section className="pin-group">
+                      <header>Inputs</header>
+                      <div className="pin-list grouped-pin-list">
+                        <div
+                          className="pin-drop-edge"
+                          onDragOver={(event) => {
                             event.preventDefault();
-                            commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
-                            event.currentTarget.blur();
-                          } else if (event.key === "Escape") {
-                            setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
-                            event.currentTarget.blur();
+                            onPinListDragOver(selectedNode.id, "input", "start");
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            finalizePinDrop();
+                          }}
+                        />
+                        {selectedNode.inputPinIds.map((pinId, index) => {
+                          const pin = pins[pinId];
+                          if (!pin) {
+                            return null;
                           }
-                        }}
-                      />
-                      <button
-                        className="pin-delete-btn"
-                        onClick={() => removePin(pin.id)}
-                        title="Remove output"
-                        aria-label="Remove output"
-                        tabIndex={-1}
-                      >
-                        <span className="material-symbols-outlined">delete</span>
-                      </button>
-                    </div>
-                  );
-                })}
-                <div
-                  className="pin-drop-edge"
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    onPinListDragOver(selectedNode.id, "output", "end");
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    finalizePinDrop();
-                  }}
-                />
-                <button className="pin-add-btn" onClick={() => addPin(selectedNode.id, "output")}>Add Output</button>
-              </div>
-            </section>
+                          return (
+                            <div
+                              className={`inspector-pin-row pin-row-grouped ${
+                                draggedPin?.pinId === pinId ? "is-dragging" : ""
+                              } ${
+                                pinDropTarget?.nodeId === selectedNode.id &&
+                                pinDropTarget?.direction === "input" &&
+                                pinDropTarget?.index === index
+                                  ? "is-drop-target"
+                                  : ""
+                              }`}
+                              key={pin.id}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                onPinDragOver(selectedNode.id, "input", index);
+                              }}
+                              onDrop={(event) => onPinDrop(event, selectedNode.id, "input")}
+                            >
+                              <button
+                                className="pin-handle"
+                                title="Reorder input"
+                                aria-label="Reorder input"
+                                tabIndex={-1}
+                                draggable
+                                onDragStart={(event) =>
+                                  onPinHandleDragStart(selectedNode.id, "input", index, pin.id, event)
+                                }
+                                onDragEnd={onPinDragEnd}
+                              >
+                                <span className="material-symbols-outlined">drag_indicator</span>
+                              </button>
+                              <input
+                                className="pin-edit-input"
+                                value={inspectorPinDrafts[pin.id] ?? pin.label}
+                                onChange={(event) =>
+                                  setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
+                                }
+                                onFocus={(event) => event.currentTarget.select()}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                }}
+                                onBlur={(event) =>
+                                  commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
+                                }
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
+                                    event.currentTarget.blur();
+                                  } else if (event.key === "Escape") {
+                                    setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
+                                    event.currentTarget.blur();
+                                  }
+                                }}
+                              />
+                              <button
+                                className="pin-delete-btn"
+                                onClick={() => removePin(pin.id)}
+                                title="Remove input"
+                                aria-label="Remove input"
+                                tabIndex={-1}
+                              >
+                                <span className="material-symbols-outlined">delete</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                        <div
+                          className="pin-drop-edge"
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            onPinListDragOver(selectedNode.id, "input", "end");
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            finalizePinDrop();
+                          }}
+                        />
+                        <button className="pin-add-btn" onClick={() => addPin(selectedNode.id, "input")}>
+                          Add Input
+                        </button>
+                      </div>
+                    </section>
+
+                    <section className="pin-group">
+                      <header>Outputs</header>
+                      <div className="pin-list grouped-pin-list">
+                        <div
+                          className="pin-drop-edge"
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            onPinListDragOver(selectedNode.id, "output", "start");
+                          }}
+                          onDrop={finalizePinDrop}
+                        />
+                        {selectedNode.outputPinIds.map((pinId, index) => {
+                          const pin = pins[pinId];
+                          if (!pin) {
+                            return null;
+                          }
+                          return (
+                            <div
+                              className={`inspector-pin-row pin-row-grouped ${
+                                draggedPin?.pinId === pinId ? "is-dragging" : ""
+                              } ${
+                                pinDropTarget?.nodeId === selectedNode.id &&
+                                pinDropTarget?.direction === "output" &&
+                                pinDropTarget?.index === index
+                                  ? "is-drop-target"
+                                  : ""
+                              }`}
+                              key={pin.id}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                onPinDragOver(selectedNode.id, "output", index);
+                              }}
+                              onDrop={(event) => onPinDrop(event, selectedNode.id, "output")}
+                            >
+                              <button
+                                className="pin-handle"
+                                title="Reorder output"
+                                aria-label="Reorder output"
+                                tabIndex={-1}
+                                draggable
+                                onDragStart={(event) =>
+                                  onPinHandleDragStart(selectedNode.id, "output", index, pin.id, event)
+                                }
+                                onDragEnd={onPinDragEnd}
+                              >
+                                <span className="material-symbols-outlined">drag_indicator</span>
+                              </button>
+                              <input
+                                className="pin-edit-input"
+                                value={inspectorPinDrafts[pin.id] ?? pin.label}
+                                onChange={(event) =>
+                                  setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: event.target.value }))
+                                }
+                                onFocus={(event) => event.currentTarget.select()}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                }}
+                                onBlur={(event) =>
+                                  commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label)
+                                }
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    commitInspectorPinRename(pin.id, event.currentTarget.value, pin.label);
+                                    event.currentTarget.blur();
+                                  } else if (event.key === "Escape") {
+                                    setInspectorPinDrafts((prev) => ({ ...prev, [pin.id]: pin.label }));
+                                    event.currentTarget.blur();
+                                  }
+                                }}
+                              />
+                              <button
+                                className="pin-delete-btn"
+                                onClick={() => removePin(pin.id)}
+                                title="Remove output"
+                                aria-label="Remove output"
+                                tabIndex={-1}
+                              >
+                                <span className="material-symbols-outlined">delete</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                        <div
+                          className="pin-drop-edge"
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            onPinListDragOver(selectedNode.id, "output", "end");
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            finalizePinDrop();
+                          }}
+                        />
+                        <button className="pin-add-btn" onClick={() => addPin(selectedNode.id, "output")}>
+                          Add Output
+                        </button>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
-        ) : (
-          <p>Select one node to edit pins.</p>
-        )}
-      </aside>
+        ) : null}
+      </main>
 
       <div className="floating-dock" role="toolbar" aria-label="Graph quick controls" ref={dockRef}>
         <button
