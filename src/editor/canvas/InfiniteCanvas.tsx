@@ -27,15 +27,30 @@ type InfiniteCanvasProps = {
   resolvedNavigationMode: ResolvedNavigationMode;
   onResolveNavigationMode: (mode: Exclude<ResolvedNavigationMode, null>) => void;
   onConnectError: (message: string) => void;
+  onRequestNodePicker: (request: {
+    worldX: number;
+    worldY: number;
+    screenX: number;
+    screenY: number;
+    connectFromPinId?: string;
+  }) => void;
 };
 
 export function InfiniteCanvas({
   navigationMode,
   resolvedNavigationMode,
   onResolveNavigationMode,
-  onConnectError
+  onConnectError,
+  onRequestNodePicker
 }: InfiniteCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const pendingRightClickRef = useRef<{
+    startClientX: number;
+    startClientY: number;
+    worldX: number;
+    worldY: number;
+    canPan: boolean;
+  } | null>(null);
   const gestureScaleRef = useRef(1);
   const [dragState, setDragState] = useState<DragState>({ mode: "idle" });
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -227,6 +242,21 @@ export function InfiniteCanvas({
 
   useEffect(() => {
     const onMouseMove = (event: MouseEvent) => {
+      const pendingRightClick = pendingRightClickRef.current;
+      if (pendingRightClick && dragState.mode === "idle") {
+        const dx = event.clientX - pendingRightClick.startClientX;
+        const dy = event.clientY - pendingRightClick.startClientY;
+        if (Math.hypot(dx, dy) >= 5) {
+          if (pendingRightClick.canPan) {
+            pendingRightClickRef.current = null;
+            setDragState({ mode: "panning", lastClientX: event.clientX, lastClientY: event.clientY });
+          } else {
+            pendingRightClickRef.current = null;
+          }
+        }
+        return;
+      }
+
       if (dragState.mode === "idle") {
         return;
       }
@@ -287,7 +317,23 @@ export function InfiniteCanvas({
       }
     };
 
-    const onMouseUp = () => {
+    const onMouseUp = (event: MouseEvent) => {
+      const pendingRightClick = pendingRightClickRef.current;
+      if (pendingRightClick) {
+        pendingRightClickRef.current = null;
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          onRequestNodePicker(
+            {
+              worldX: pendingRightClick.worldX,
+              worldY: pendingRightClick.worldY,
+              screenX: event.clientX - rect.left,
+              screenY: event.clientY - rect.top
+            }
+          );
+        }
+      }
+
       if (dragState.mode === "node-drag") {
         endHistoryTransaction();
       }
@@ -303,6 +349,23 @@ export function InfiniteCanvas({
         }
       }
       if (dragState.mode === "connect") {
+        const releasedOnPin =
+          event.target instanceof Element && Boolean(event.target.closest(".pin-dot"));
+        const rect = canvasRef.current?.getBoundingClientRect();
+        const targetInCanvas =
+          event.target instanceof Node && Boolean(canvasRef.current?.contains(event.target));
+        if (!releasedOnPin && rect && targetInCanvas) {
+          const localX = event.clientX - rect.left;
+          const localY = event.clientY - rect.top;
+          const world = screenToWorld(localX, localY, viewport);
+          onRequestNodePicker({
+            worldX: world.x,
+            worldY: world.y,
+            screenX: localX,
+            screenY: localY,
+            connectFromPinId: dragState.fromPinId
+          });
+        }
         setDragState({ mode: "idle" });
       }
       if (dragState.mode !== "idle") {
@@ -317,7 +380,7 @@ export function InfiniteCanvas({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [dragState, endHistoryTransaction, moveSelectionBy, panBy, setSelectionByMarquee, viewport]);
+  }, [dragState, endHistoryTransaction, moveSelectionBy, onRequestNodePicker, panBy, setSelectionByMarquee, viewport]);
 
   const startPan = useCallback((clientX: number, clientY: number) => {
     setDragState({ mode: "panning", lastClientX: clientX, lastClientY: clientY });
@@ -325,16 +388,27 @@ export function InfiniteCanvas({
 
   const onCanvasMouseDown = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (effectiveNavigationMode === "mouse" && event.button === 2) {
+      if (
+        event.button === 2
+      ) {
         event.preventDefault();
-        startPan(event.clientX, event.clientY);
-        return;
-      }
-
-      if (navigationMode === "auto" && !resolvedNavigationMode && event.button === 2) {
-        event.preventDefault();
-        onResolveNavigationMode("mouse");
-        startPan(event.clientX, event.clientY);
+        if (navigationMode === "auto" && !resolvedNavigationMode) {
+          onResolveNavigationMode("mouse");
+        }
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) {
+          return;
+        }
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+        const world = screenToWorld(localX, localY, viewport);
+        pendingRightClickRef.current = {
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          worldX: world.x,
+          worldY: world.y,
+          canPan: effectiveNavigationMode === "mouse" || (navigationMode === "auto" && !resolvedNavigationMode)
+        };
         return;
       }
 
@@ -576,13 +650,12 @@ export function InfiniteCanvas({
     <div
       className="canvas-root"
       ref={canvasRef}
+      tabIndex={-1}
       onMouseDown={onCanvasMouseDown}
       onDoubleClick={onCanvasDoubleClick}
       onWheel={onCanvasWheel}
       onContextMenu={(event) => {
-        if (effectiveNavigationMode === "mouse") {
-          event.preventDefault();
-        }
+        event.preventDefault();
       }}
     >
       <GridBackground viewport={viewport} />

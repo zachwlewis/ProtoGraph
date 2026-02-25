@@ -7,6 +7,7 @@ import type {
   PinModel,
   Viewport
 } from "./types";
+import type { NodePreset } from "../presets/types";
 import {
   NODE_BODY_BOTTOM_PADDING,
   PIN_ANCHOR_INSET,
@@ -78,6 +79,55 @@ export function createNode(
       draft.nodes[nodeId] = node;
       draft.pins[defaultInputPin.id] = defaultInputPin;
       draft.pins[defaultOutputPin.id] = defaultOutputPin;
+      draft.order.push(nodeId);
+      draft.selectedNodeIds = [nodeId];
+      draft.selectedEdgeIds = [];
+    }),
+    nodeId
+  ];
+}
+
+export function createNodeFromPreset(
+  graph: GraphModel,
+  input: { preset: NodePreset; x: number; y: number; titleOverride?: string }
+): [GraphModel, string] {
+  const nodeId = `node_${nodeSequence++}`;
+  const inputPinIds: string[] = [];
+  const outputPinIds: string[] = [];
+  const nextPins: Record<string, PinModel> = {};
+
+  for (const presetPin of input.preset.pins) {
+    const pin = makePin(nodeId, presetPin.direction, presetPin.label, {
+      type: presetPin.type,
+      color: presetPin.color,
+      shape: presetPin.shape
+    });
+    nextPins[pin.id] = pin;
+    if (pin.direction === "input") {
+      inputPinIds.push(pin.id);
+    } else {
+      outputPinIds.push(pin.id);
+    }
+  }
+
+  const node: NodeModel = {
+    id: nodeId,
+    title: input.titleOverride ?? input.preset.title,
+    x: input.x,
+    y: input.y,
+    width: input.preset.width ?? layoutTokens.node.width,
+    height: 120,
+    inputPinIds,
+    outputPinIds
+  };
+  node.height = computeNodeHeight(node);
+
+  return [
+    produce(graph, (draft) => {
+      draft.nodes[nodeId] = node;
+      for (const pin of Object.values(nextPins)) {
+        draft.pins[pin.id] = pin;
+      }
       draft.order.push(nodeId);
       draft.selectedNodeIds = [nodeId];
       draft.selectedEdgeIds = [];
@@ -570,15 +620,20 @@ function computeNodeHeight(node: NodeModel): number {
   return NODE_TITLE_HEIGHT + PIN_TOP_PADDING + rowCount * PIN_ROW_HEIGHT + NODE_BODY_BOTTOM_PADDING;
 }
 
-function makePin(nodeId: string, direction: PinDirection, label: string): PinModel {
+function makePin(
+  nodeId: string,
+  direction: PinDirection,
+  label: string,
+  overrides?: Partial<Pick<PinModel, "type" | "color" | "shape">>
+): PinModel {
   return {
     id: `pin_${pinSequence++}`,
     nodeId,
     direction,
     label,
-    type: direction === "input" ? "Any In" : "Any Out",
-    color: direction === "input" ? "#58c4ff" : "#ffb655",
-    shape: "circle"
+    type: overrides?.type ?? (direction === "input" ? "Any In" : "Any Out"),
+    color: overrides?.color ?? (direction === "input" ? "#58c4ff" : "#ffb655"),
+    shape: overrides?.shape ?? "circle"
   };
 }
 

@@ -55,6 +55,10 @@ npm test
 npm run build
 ```
 
+## Developer Docs
+
+- Node presets and pack authoring: `docs/node-preset-packs.md`
+
 ## GitHub Pages Deployment
 
 - Repository must be public for GitHub Pages on GitHub Free.

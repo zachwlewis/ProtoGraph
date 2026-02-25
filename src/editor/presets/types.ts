@@ -1,0 +1,25 @@
+import type { PinDirection, PinShape } from "../model/types";
+
+export type PinPreset = {
+  label: string;
+  direction: PinDirection;
+  type?: string;
+  color?: string;
+  shape?: PinShape;
+};
+
+export type NodePreset = {
+  id: string;
+  title: string;
+  width?: number;
+  pins: PinPreset[];
+  tags?: string[];
+  category?: string;
+};
+
+export type NodePack = {
+  id: string;
+  label: string;
+  description?: string;
+  presets: NodePreset[];
+};

@@ -13,6 +13,7 @@ import {
   clearSelection,
   connectPins,
   createNode,
+  createNodeFromPreset,
   deleteSelection,
   distributeSelection,
   duplicateSelectedNodes,
@@ -32,6 +33,7 @@ import {
   setViewport,
   zoomAtScreenPoint
 } from "../model/graphMutations";
+import { nodePresetIndex } from "../presets/registry";
 
 type GraphContentSnapshot = Pick<GraphModel, "nodes" | "pins" | "edges" | "order" | "edgeOrder">;
 
@@ -42,6 +44,7 @@ type GraphHistoryState = {
 
 type GraphActions = {
   addNodeAt: (x: number, y: number, title?: string) => string;
+  addNodeFromPresetAt: (x: number, y: number, presetId: string, titleOverride?: string) => string;
   addPin: (nodeId: string, direction: PinDirection, label?: string) => string | null;
   removePin: (pinId: string) => void;
   reorderPin: (nodeId: string, direction: PinDirection, fromIndex: number, toIndex: number) => void;
@@ -211,6 +214,25 @@ export const useGraphStore = create<GraphModel & GraphHistoryState & GraphAction
       let nodeId = "";
       applyUndoable((graph) => {
         const [next, createdId] = createNode(graph, { x, y, title });
+        nodeId = createdId;
+        return next;
+      });
+      return nodeId;
+    },
+
+    addNodeFromPresetAt: (x, y, presetId, titleOverride) => {
+      const indexedPreset = nodePresetIndex[presetId];
+      if (!indexedPreset) {
+        return "";
+      }
+      let nodeId = "";
+      applyUndoable((graph) => {
+        const [next, createdId] = createNodeFromPreset(graph, {
+          preset: indexedPreset.preset,
+          x,
+          y,
+          titleOverride
+        });
         nodeId = createdId;
         return next;
       });

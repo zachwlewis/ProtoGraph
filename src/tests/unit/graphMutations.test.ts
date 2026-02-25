@@ -3,6 +3,7 @@ import {
   addPinToNode,
   connectPins,
   createNode,
+  createNodeFromPreset,
   deleteSelection,
   distributeSelection,
   duplicateSelectedNodes,
@@ -18,6 +19,7 @@ import {
   setSelectedNodes,
   setSingleInputPolicy
 } from "../../editor/model/graphMutations";
+import type { NodePreset } from "../../editor/presets/types";
 
 describe("graphMutations", () => {
   it("creates nodes and selects the newly created node", () => {
@@ -29,6 +31,56 @@ describe("graphMutations", () => {
     expect(next.selectedNodeIds).toEqual([nodeId]);
     expect(next.nodes[nodeId].inputPinIds.length).toBe(1);
     expect(next.nodes[nodeId].outputPinIds.length).toBe(1);
+  });
+
+  it("creates a node from preset with ordered directional pins", () => {
+    const preset: NodePreset = {
+      id: "test.preset",
+      title: "Blend",
+      width: 280,
+      pins: [
+        { label: "Exec In", direction: "input", type: "Exec" },
+        { label: "A", direction: "input", type: "Float" },
+        { label: "Result", direction: "output", type: "Float" },
+        { label: "Exec Out", direction: "output", type: "Exec" }
+      ]
+    };
+
+    const graph = makeGraph();
+    const [next, nodeId] = createNodeFromPreset(graph, { preset, x: 140, y: 220 });
+    const node = next.nodes[nodeId];
+
+    expect(node).toBeDefined();
+    expect(node.title).toBe("Blend");
+    expect(node.width).toBe(280);
+    expect(node.inputPinIds).toHaveLength(2);
+    expect(node.outputPinIds).toHaveLength(2);
+    expect(next.pins[node.inputPinIds[0]].label).toBe("Exec In");
+    expect(next.pins[node.inputPinIds[1]].label).toBe("A");
+    expect(next.pins[node.outputPinIds[0]].label).toBe("Result");
+    expect(next.pins[node.outputPinIds[1]].label).toBe("Exec Out");
+    expect(next.selectedNodeIds).toEqual([nodeId]);
+    expect(next.selectedEdgeIds).toEqual([]);
+  });
+
+  it("uses default pin values for preset pins when optional fields are omitted", () => {
+    const preset: NodePreset = {
+      id: "test.defaults",
+      title: "Defaulted",
+      pins: [{ label: "Value", direction: "input" }, { label: "Result", direction: "output" }]
+    };
+
+    const graph = makeGraph();
+    const [next, nodeId] = createNodeFromPreset(graph, { preset, x: 10, y: 20 });
+    const inPin = next.pins[next.nodes[nodeId].inputPinIds[0]];
+    const outPin = next.pins[next.nodes[nodeId].outputPinIds[0]];
+
+    expect(inPin.type).toBe("Any In");
+    expect(inPin.color).toBe("#58c4ff");
+    expect(inPin.shape).toBe("circle");
+    expect(outPin.type).toBe("Any Out");
+    expect(outPin.color).toBe("#ffb655");
+    expect(outPin.shape).toBe("circle");
   });
 
   it("deletes selected nodes", () => {

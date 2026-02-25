@@ -42,6 +42,21 @@ describe("store history", () => {
     expect(useGraphStore.getState().nodes[nodeId]).toBeDefined();
   });
 
+  it("undoes and redoes node creation from presets", () => {
+    const store = useGraphStore.getState();
+    const nodeId = store.addNodeFromPresetAt(120, 140, "math.add");
+
+    expect(nodeId).toBeTruthy();
+    expect(useGraphStore.getState().nodes[nodeId]).toBeDefined();
+    expect(useGraphStore.getState().canUndo).toBe(true);
+
+    store.undo();
+    expect(useGraphStore.getState().nodes[nodeId]).toBeUndefined();
+
+    store.redo();
+    expect(useGraphStore.getState().nodes[nodeId]).toBeDefined();
+  });
+
   it("undoes and redoes successful pin connections", () => {
     const store = useGraphStore.getState();
     const a = store.addNodeAt(0, 0, "A");
