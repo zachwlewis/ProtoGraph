@@ -13,6 +13,10 @@ export type NodePreset = {
   title: string;
   width?: number;
   pins: PinPreset[];
+  isCondensed?: boolean;
+  tintColor?: PinColor | null;
+  showTitleInputPin?: boolean;
+  showTitleOutputPin?: boolean;
   tags?: string[];
   category?: string;
 };

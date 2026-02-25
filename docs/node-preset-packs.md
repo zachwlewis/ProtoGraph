@@ -27,6 +27,10 @@ type NodePreset = {
   title: string;
   width?: number;
   pins: PinPreset[];
+  isCondensed?: boolean;
+  tintColor?: "white" | "red" | "blue" | "green" | "purple" | "yellow" | "cyan" | "magenta" | null;
+  showTitleInputPin?: boolean;
+  showTitleOutputPin?: boolean;
   tags?: string[];
   category?: string;
 };
@@ -127,6 +131,44 @@ If `type`, `color`, or `shape` are omitted in a `PinPreset`, defaults are applie
   - `type: "Any Out"`
   - `color: "yellow"`
   - `shape: "circle"`
+
+## Node Display Defaults
+
+If optional node display fields are omitted:
+
+- `isCondensed: false`
+- `tintColor: null`
+- `showTitleInputPin: false`
+- `showTitleOutputPin: false`
+
+Behavior rule:
+
+- Condensed nodes always suppress title pins, even if a preset sets them to `true`.
+
+Example flow-style node with title pins + tint:
+
+```ts
+{
+  id: "core.branch",
+  title: "Branch",
+  tintColor: "purple",
+  showTitleInputPin: true,
+  showTitleOutputPin: true,
+  pins: [...]
+}
+```
+
+Example compact math node:
+
+```ts
+{
+  id: "math.add",
+  title: "Add",
+  isCondensed: true,
+  tintColor: "green",
+  pins: [...]
+}
+```
 
 ## Placement + Interaction Behavior
 

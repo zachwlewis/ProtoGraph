@@ -2,6 +2,7 @@ import { produce } from "immer";
 import type {
   EdgeModel,
   GraphModel,
+  NodeTint,
   NodeModel,
   PinDirection,
   PinColor,
@@ -73,8 +74,16 @@ export function createNode(
     width: input.width ?? layoutTokens.node.width,
     height: input.height ?? 120,
     inputPinIds: [defaultInputPin.id],
-    outputPinIds: [defaultOutputPin.id]
+    outputPinIds: [defaultOutputPin.id],
+    isCondensed: input.isCondensed ?? false,
+    tintColor: input.tintColor ?? null,
+    showTitleInputPin: input.showTitleInputPin ?? false,
+    showTitleOutputPin: input.showTitleOutputPin ?? false
   };
+  if (node.isCondensed) {
+    node.showTitleInputPin = false;
+    node.showTitleOutputPin = false;
+  }
   node.height = computeNodeHeight(node);
 
   return [
@@ -121,8 +130,16 @@ export function createNodeFromPreset(
     width: input.preset.width ?? layoutTokens.node.width,
     height: 120,
     inputPinIds,
-    outputPinIds
+    outputPinIds,
+    isCondensed: input.preset.isCondensed ?? false,
+    tintColor: sanitizeNodeTint(input.preset.tintColor),
+    showTitleInputPin: input.preset.showTitleInputPin ?? false,
+    showTitleOutputPin: input.preset.showTitleOutputPin ?? false
   };
+  if (node.isCondensed) {
+    node.showTitleInputPin = false;
+    node.showTitleOutputPin = false;
+  }
   node.height = computeNodeHeight(node);
 
   return [
@@ -418,6 +435,61 @@ export function setPinColor(graph: GraphModel, pinId: string, color: PinColor): 
   });
 }
 
+export function setNodeCondensed(graph: GraphModel, nodeId: string, value: boolean): GraphModel {
+  const node = graph.nodes[nodeId];
+  if (!node || node.isCondensed === value) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    const targetNode = draft.nodes[nodeId];
+    targetNode.isCondensed = value;
+    if (value) {
+      targetNode.showTitleInputPin = false;
+      targetNode.showTitleOutputPin = false;
+    }
+  });
+}
+
+export function setNodeTintColor(graph: GraphModel, nodeId: string, color: NodeTint | null): GraphModel {
+  const node = graph.nodes[nodeId];
+  const nextColor = sanitizeNodeTint(color);
+  if (!node || node.tintColor === nextColor) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    draft.nodes[nodeId].tintColor = nextColor;
+  });
+}
+
+export function setNodeTitlePinVisible(
+  graph: GraphModel,
+  nodeId: string,
+  direction: PinDirection,
+  value: boolean
+): GraphModel {
+  const node = graph.nodes[nodeId];
+  if (!node || node.isCondensed) {
+    return graph;
+  }
+  if (direction === "input" && node.showTitleInputPin === value) {
+    return graph;
+  }
+  if (direction === "output" && node.showTitleOutputPin === value) {
+    return graph;
+  }
+
+  return produce(graph, (draft) => {
+    const targetNode = draft.nodes[nodeId];
+    if (direction === "input") {
+      targetNode.showTitleInputPin = value;
+    } else {
+      targetNode.showTitleOutputPin = value;
+    }
+  });
+}
+
 export function setSelectionByMarquee(
   graph: GraphModel,
   rect: WorldRect,
@@ -636,7 +708,20 @@ export function getPinCenter(graph: GraphModel, pinId: string): { x: number; y: 
     pin.direction === "input"
       ? node.x + PIN_ANCHOR_INSET
       : node.x + node.width - PIN_ANCHOR_INSET;
-  const y = node.y + NODE_TITLE_HEIGHT + PIN_TOP_PADDING + PIN_ROW_HEIGHT * index + PIN_ROW_HEIGHT / 2;
+  const isTitlePin =
+    !node.isCondensed &&
+    ((pin.direction === "input" && node.showTitleInputPin && index === 0) ||
+      (pin.direction === "output" && node.showTitleOutputPin && index === 0));
+  const bodyStartY = node.y + (node.isCondensed ? 0 : NODE_TITLE_HEIGHT);
+  const bodyIndex = !node.isCondensed && !isTitlePin && (
+    (pin.direction === "input" && node.showTitleInputPin) ||
+    (pin.direction === "output" && node.showTitleOutputPin)
+  )
+    ? index - 1
+    : index;
+  const y = isTitlePin
+    ? node.y + NODE_TITLE_HEIGHT / 2
+    : bodyStartY + PIN_TOP_PADDING + PIN_ROW_HEIGHT * bodyIndex + PIN_ROW_HEIGHT / 2;
   return { x, y };
 }
 
@@ -683,8 +768,17 @@ function sanitizeGraph(source: GraphModel): GraphModel {
         ...node,
         inputPinIds,
         outputPinIds,
+        isCondensed: typeof node.isCondensed === "boolean" ? node.isCondensed : false,
+        tintColor: sanitizeNodeTint(node.tintColor),
+        showTitleInputPin: typeof node.showTitleInputPin === "boolean" ? node.showTitleInputPin : false,
+        showTitleOutputPin: typeof node.showTitleOutputPin === "boolean" ? node.showTitleOutputPin : false,
         height: computeNodeHeight({ ...node, inputPinIds, outputPinIds })
       };
+      if (cleanNode.isCondensed) {
+        cleanNode.showTitleInputPin = false;
+        cleanNode.showTitleOutputPin = false;
+      }
+      cleanNode.height = computeNodeHeight(cleanNode);
       return [id, cleanNode];
     })
   );
@@ -799,4 +893,23 @@ function sanitizePinColor(color: string | undefined, direction: PinDirection): P
   };
 
   return legacyMap[color.toLowerCase()] ?? fallback;
+}
+
+function sanitizeNodeTint(tint: string | null | undefined): NodeTint | null {
+  if (!tint) {
+    return null;
+  }
+  if (
+    tint === "white" ||
+    tint === "red" ||
+    tint === "blue" ||
+    tint === "green" ||
+    tint === "purple" ||
+    tint === "yellow" ||
+    tint === "cyan" ||
+    tint === "magenta"
+  ) {
+    return tint;
+  }
+  return null;
 }

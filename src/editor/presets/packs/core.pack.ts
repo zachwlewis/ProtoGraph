@@ -10,6 +10,8 @@ export const coreNodePack: NodePack = {
       title: "Event",
       category: "Flow",
       tags: ["entry", "flow"],
+      tintColor: "yellow",
+      showTitleOutputPin: true,
       pins: [{ label: "Out", direction: "output", type: "Exec", color: "white", shape: "execution" }]
     },
     {
@@ -17,6 +19,9 @@ export const coreNodePack: NodePack = {
       title: "Branch",
       category: "Flow",
       tags: ["if", "condition"],
+      tintColor: "purple",
+      showTitleInputPin: true,
+      showTitleOutputPin: false,
       pins: [
         { label: "In", direction: "input", type: "Exec", color: "white", shape: "execution" },
         { label: "Condition", direction: "input", type: "Bool", color: "red", shape: "circle" },
@@ -29,6 +34,9 @@ export const coreNodePack: NodePack = {
       title: "Print",
       category: "Utility",
       tags: ["debug", "log"],
+      tintColor: "cyan",
+      showTitleInputPin: true,
+      showTitleOutputPin: true,
       pins: [
         { label: "In", direction: "input", type: "Exec", color: "white", shape: "execution" },
         { label: "Value", direction: "input", type: "Any", color: "blue", shape: "diamond" },

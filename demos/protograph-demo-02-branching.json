@@ -21,7 +21,11 @@
         ],
         "outputPinIds": [
           "pin_2"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": null,
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_2": {
         "id": "node_2",
@@ -37,7 +41,11 @@
         ],
         "outputPinIds": [
           "pin_6"
-        ]
+        ],
+        "isCondensed": true,
+        "tintColor": "green",
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_3": {
         "id": "node_3",
@@ -52,7 +60,11 @@
         ],
         "outputPinIds": [
           "pin_9"
-        ]
+        ],
+        "isCondensed": true,
+        "tintColor": "blue",
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_4": {
         "id": "node_4",
@@ -67,7 +79,11 @@
         ],
         "outputPinIds": [
           "pin_12"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": "purple",
+        "showTitleInputPin": true,
+        "showTitleOutputPin": true
       }
     },
     "pins": {

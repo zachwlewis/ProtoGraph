@@ -21,7 +21,11 @@
         ],
         "outputPinIds": [
           "pin_2"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": "yellow",
+        "showTitleInputPin": false,
+        "showTitleOutputPin": true
       },
       "node_2": {
         "id": "node_2",
@@ -35,7 +39,11 @@
         ],
         "outputPinIds": [
           "pin_4"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": null,
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_3": {
         "id": "node_3",
@@ -51,7 +59,11 @@
         ],
         "outputPinIds": [
           "pin_8"
-        ]
+        ],
+        "isCondensed": true,
+        "tintColor": "blue",
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_4": {
         "id": "node_4",
@@ -66,7 +78,11 @@
         ],
         "outputPinIds": [
           "pin_11"
-        ]
+        ],
+        "isCondensed": true,
+        "tintColor": "green",
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_5": {
         "id": "node_5",
@@ -83,7 +99,11 @@
         ],
         "outputPinIds": [
           "pin_16"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": null,
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_6": {
         "id": "node_6",
@@ -98,7 +118,11 @@
         ],
         "outputPinIds": [
           "pin_19"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": null,
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       },
       "node_7": {
         "id": "node_7",
@@ -114,7 +138,11 @@
         ],
         "outputPinIds": [
           "pin_23"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": "purple",
+        "showTitleInputPin": true,
+        "showTitleOutputPin": true
       },
       "node_8": {
         "id": "node_8",
@@ -129,7 +157,11 @@
         ],
         "outputPinIds": [
           "pin_26"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": null,
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       }
     },
     "pins": {

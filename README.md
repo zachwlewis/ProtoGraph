@@ -11,6 +11,10 @@ Offline-first web app for quickly mocking up node graph screenshots.
   - Connect wires, select/delete edges
   - Inline node title + pin label editing
   - Pin add/remove/reorder from inspector
+  - Node advanced styling controls:
+    - Condensed nodes with centered titles
+    - Node tint gradient on header/body
+    - Optional title input/output pins (uncondensed mode)
 - Layout helpers:
   - Align left/center/right/top/middle/bottom
   - Distribute horizontally/vertically

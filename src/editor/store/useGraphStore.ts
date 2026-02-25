@@ -24,6 +24,9 @@ import {
   renamePin,
   setPinColor,
   setPinShape,
+  setNodeCondensed,
+  setNodeTintColor,
+  setNodeTitlePinVisible,
   replaceGraphState,
   removePin,
   reorderPinInNode,
@@ -55,6 +58,9 @@ type GraphActions = {
   renamePin: (pinId: string, label: string) => void;
   setPinShape: (pinId: string, shape: PinShape) => void;
   setPinColor: (pinId: string, color: PinColor) => void;
+  setNodeCondensed: (nodeId: string, value: boolean) => void;
+  setNodeTintColor: (nodeId: string, color: PinColor | null) => void;
+  setNodeTitlePinVisible: (nodeId: string, direction: PinDirection, value: boolean) => void;
   connectPins: (fromPinId: string, toPinId: string) => ConnectResult;
   setSelection: (ids: string[]) => void;
   setSelectionByMarquee: (rect: WorldRect, mode?: SelectionMode) => void;
@@ -263,6 +269,10 @@ export const useGraphStore = create<GraphModel & GraphHistoryState & GraphAction
     renamePin: (pinId, label) => applyUndoable((graph) => renamePin(graph, pinId, label)),
     setPinShape: (pinId, shape) => applyUndoable((graph) => setPinShape(graph, pinId, shape)),
     setPinColor: (pinId, color) => applyUndoable((graph) => setPinColor(graph, pinId, color)),
+    setNodeCondensed: (nodeId, value) => applyUndoable((graph) => setNodeCondensed(graph, nodeId, value)),
+    setNodeTintColor: (nodeId, color) => applyUndoable((graph) => setNodeTintColor(graph, nodeId, color)),
+    setNodeTitlePinVisible: (nodeId, direction, value) =>
+      applyUndoable((graph) => setNodeTitlePinVisible(graph, nodeId, direction, value)),
 
     connectPins: (fromPinId, toPinId) => {
       let result: ConnectResult = { graph: toGraph(get()), success: false };

@@ -83,7 +83,7 @@ describe("App inspector accessibility", () => {
     expect(distributeVertical?.disabled).toBe(true);
   });
 
-  it("tabs from node title input to pin input while skipping handle and delete buttons", async () => {
+  it("tabs from node title input to node advanced toggle and then pin input while skipping handle and delete buttons", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
 
@@ -95,11 +95,15 @@ describe("App inspector accessibility", () => {
       expect(container.querySelector(".inspector-block")).toBeTruthy();
     });
 
-    const nodeTitleInput = container.querySelector(".inspector-block > input") as HTMLInputElement | null;
+    const nodeTitleInput = container.querySelector(".node-title-row > input") as HTMLInputElement | null;
+    const nodeAdvancedToggle = container.querySelector(
+      '.node-title-row .node-advanced-toggle[aria-label=\"Toggle advanced node options\"]'
+    ) as HTMLButtonElement | null;
     const pinHandle = container.querySelector(".inspector-block .pin-handle") as HTMLButtonElement | null;
     const pinDelete = container.querySelector(".inspector-block .pin-delete-btn") as HTMLButtonElement | null;
 
     expect(nodeTitleInput).toBeTruthy();
+    expect(nodeAdvancedToggle).toBeTruthy();
     expect(pinHandle).toBeTruthy();
     expect(pinDelete).toBeTruthy();
     expect(pinHandle?.tabIndex).toBe(-1);
@@ -107,6 +111,9 @@ describe("App inspector accessibility", () => {
 
     nodeTitleInput?.focus();
     expect(document.activeElement).toBe(nodeTitleInput);
+
+    await user.tab();
+    expect(document.activeElement).toBe(nodeAdvancedToggle);
 
     await user.tab();
 
@@ -176,7 +183,9 @@ describe("App inspector accessibility", () => {
     });
 
     expect(container.querySelector(".pin-advanced-content")).toBeNull();
-    const toggle = container.querySelector(".pin-advanced-toggle") as HTMLButtonElement | null;
+    const toggle = container.querySelector(
+      ".inspector-pin-row .pin-advanced-toggle"
+    ) as HTMLButtonElement | null;
     expect(toggle).toBeTruthy();
     await user.click(toggle!);
     expect(container.querySelector(".pin-advanced-content")).toBeTruthy();
@@ -202,5 +211,44 @@ describe("App inspector accessibility", () => {
     expect(colorButton).toBeTruthy();
     await user.click(colorButton!);
     expect(useGraphStore.getState().pins[pinId].color).toBe(selectedColor);
+  });
+
+  it("keeps advanced node controls collapsed by default and applies node display edits", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+
+    const nodeCard = container.querySelector(".node-card") as HTMLElement | null;
+    expect(nodeCard).toBeTruthy();
+    await user.click(nodeCard!);
+
+    await waitFor(() => {
+      expect(container.querySelector(".inspector-block")).toBeTruthy();
+    });
+
+    expect(container.querySelector(".node-advanced-content")).toBeNull();
+    const toggle = container.querySelector(
+      '.node-title-row .node-advanced-toggle[aria-label=\"Toggle advanced node options\"]'
+    ) as HTMLButtonElement | null;
+    expect(toggle).toBeTruthy();
+    await user.click(toggle!);
+    expect(container.querySelector(".node-advanced-content")).toBeTruthy();
+
+    const selectedNodeId = useGraphStore.getState().selectedNodeIds[0];
+    expect(selectedNodeId).toBeTruthy();
+    if (!selectedNodeId) {
+      throw new Error("Expected a selected node id");
+    }
+
+    const condensedToggle = container.querySelector(
+      '.node-advanced-content button[aria-label=\"Toggle node condensed\"]'
+    ) as HTMLButtonElement | null;
+    expect(condensedToggle).toBeTruthy();
+    await user.click(condensedToggle!);
+    expect(useGraphStore.getState().nodes[selectedNodeId].isCondensed).toBe(true);
+
+    const colorButton = container.querySelector('[aria-label=\"Set node color red\"]') as HTMLButtonElement | null;
+    expect(colorButton).toBeTruthy();
+    await user.click(colorButton!);
+    expect(useGraphStore.getState().nodes[selectedNodeId].tintColor).toBe("red");
   });
 });

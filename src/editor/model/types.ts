@@ -4,6 +4,7 @@ export type PinDirection = "input" | "output";
 
 export type PinShape = "circle" | "diamond" | "square" | "execution";
 export type PinColor = "white" | "red" | "blue" | "green" | "purple" | "yellow" | "cyan" | "magenta";
+export type NodeTint = PinColor;
 
 export type PinModel = {
   id: string;
@@ -31,6 +32,10 @@ export type NodeModel = {
   height: number;
   inputPinIds: string[];
   outputPinIds: string[];
+  isCondensed: boolean;
+  tintColor: NodeTint | null;
+  showTitleInputPin: boolean;
+  showTitleOutputPin: boolean;
 };
 
 export type Viewport = {

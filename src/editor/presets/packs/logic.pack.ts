@@ -10,6 +10,8 @@ export const logicNodePack: NodePack = {
       title: "AND",
       category: "Boolean",
       tags: ["&&", "bool"],
+      isCondensed: true,
+      tintColor: "red",
       pins: [
         { label: "A", direction: "input", type: "Bool", color: "red", shape: "circle" },
         { label: "B", direction: "input", type: "Bool", color: "red", shape: "circle" },
@@ -21,6 +23,8 @@ export const logicNodePack: NodePack = {
       title: "OR",
       category: "Boolean",
       tags: ["||", "bool"],
+      isCondensed: true,
+      tintColor: "red",
       pins: [
         { label: "A", direction: "input", type: "Bool", color: "red", shape: "circle" },
         { label: "B", direction: "input", type: "Bool", color: "red", shape: "circle" },
@@ -32,6 +36,8 @@ export const logicNodePack: NodePack = {
       title: "Equal",
       category: "Compare",
       tags: ["==", "compare"],
+      isCondensed: true,
+      tintColor: "blue",
       pins: [
         { label: "A", direction: "input", type: "Any", color: "blue", shape: "diamond" },
         { label: "B", direction: "input", type: "Any", color: "blue", shape: "diamond" },

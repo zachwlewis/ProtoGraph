@@ -509,6 +509,43 @@ input[type="checkbox"] {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.node-title-row {
+  position: relative;
+}
+
+.node-title-row > input {
+  padding-right: 32px;
+}
+
+.node-title-row .node-advanced-toggle {
+  right: 7px;
+}
+
+.node-advanced-content {
+  padding: 8px;
+}
+
+.node-advanced-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.node-advanced-row > label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.node-toggle-list {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.node-color-grid {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+}
+
 .pin-delete-btn {
   border: 0;
   background: transparent;
@@ -560,6 +597,10 @@ input[type="checkbox"] {
   margin-top: 4px;
   border-top: 1px solid var(--panel-border);
   padding: 8px 8px 2px 32px;
+}
+
+.pin-advanced-content.node-advanced-content {
+  padding: 8px;
 }
 
 .pin-advanced-field {
@@ -637,6 +678,11 @@ input[type="checkbox"] {
   gap: 4px;
 }
 
+.pin-color-grid.node-color-grid {
+  grid-template-columns: repeat(9, 16px);
+  justify-content: end;
+}
+
 .pin-color-swatch {
   width: 16px;
   height: 16px;
@@ -650,6 +696,14 @@ input[type="checkbox"] {
   border-color: #d8e7ff;
   outline: 1px solid rgba(216, 231, 255, 0.35);
   outline-offset: 1px;
+}
+
+.pin-color-none {
+  position: relative;
+  border-color: rgba(255, 255, 255, 0.35);
+  background:
+    linear-gradient(135deg, transparent 46%, rgba(255, 125, 125, 0.95) 47%, rgba(255, 125, 125, 0.95) 53%, transparent 54%),
+    rgba(255, 255, 255, 0.08);
 }
 
 .pin-color-custom {
@@ -964,9 +1018,29 @@ input[type="checkbox"] {
   border: 1px solid var(--node-border);
   background: var(--node-bg);
   border-radius: 10px;
+  overflow: hidden;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   user-select: none;
   cursor: grab;
+}
+
+.node-card.has-tint .node-title,
+.node-card.is-condensed.has-tint .node-body {
+  position: relative;
+  overflow: hidden;
+}
+
+.node-card.has-tint .node-title::before,
+.node-card.is-condensed.has-tint .node-body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--node-tint) 34%, transparent),
+    color-mix(in srgb, var(--node-tint) 8%, transparent)
+  );
+  pointer-events: none;
 }
 
 .node-card.is-selected {
@@ -982,7 +1056,41 @@ input[type="checkbox"] {
   padding: 0 12px;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  position: relative;
   border-bottom: 1px solid var(--node-divider);
+  color: var(--node-title);
+  font-weight: 600;
+}
+
+.node-title-label {
+  padding: 0 18px;
+}
+
+.node-title > * {
+  position: relative;
+  z-index: 1;
+}
+
+.node-card.is-condensed .node-body {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.node-condensed-title-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.node-condensed-title-wrap .inline-edit-input,
+.node-condensed-title {
+  pointer-events: auto;
+}
+
+.node-condensed-title {
   color: var(--node-title);
   font-weight: 600;
 }
@@ -1089,6 +1197,20 @@ input[type="checkbox"] {
 }
 
 .pin-row-output .pin-dot {
+  right: 6px;
+}
+
+.pin-title {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pin-title.pin-title-input {
+  left: 6px;
+}
+
+.pin-title.pin-title-output {
   right: 6px;
 }
 

@@ -21,7 +21,11 @@
         ],
         "outputPinIds": [
           "pin_2"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": "yellow",
+        "showTitleInputPin": true,
+        "showTitleOutputPin": true
       },
       "node_2": {
         "id": "node_2",
@@ -35,7 +39,11 @@
         ],
         "outputPinIds": [
           "pin_4"
-        ]
+        ],
+        "isCondensed": false,
+        "tintColor": "cyan",
+        "showTitleInputPin": false,
+        "showTitleOutputPin": false
       }
     },
     "pins": {

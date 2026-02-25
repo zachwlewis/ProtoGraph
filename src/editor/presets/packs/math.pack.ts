@@ -10,6 +10,8 @@ export const mathNodePack: NodePack = {
       title: "Add",
       category: "Scalar",
       tags: ["+", "number"],
+      isCondensed: true,
+      tintColor: "green",
       pins: [
         { label: "A", direction: "input", type: "Float", color: "green", shape: "circle" },
         { label: "B", direction: "input", type: "Float", color: "green", shape: "circle" },
@@ -21,6 +23,8 @@ export const mathNodePack: NodePack = {
       title: "Multiply",
       category: "Scalar",
       tags: ["*", "number"],
+      isCondensed: true,
+      tintColor: "green",
       pins: [
         { label: "A", direction: "input", type: "Float", color: "green", shape: "circle" },
         { label: "B", direction: "input", type: "Float", color: "green", shape: "circle" },

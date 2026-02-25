@@ -7,12 +7,16 @@ import {
   deleteSelection,
   distributeSelection,
   duplicateSelectedNodes,
+  getPinCenter,
   makeGraph,
   renameNode,
   renamePin,
   replaceGraphState,
   removePin,
   reorderPinInNode,
+  setNodeCondensed,
+  setNodeTintColor,
+  setNodeTitlePinVisible,
   setPinColor,
   setPinShape,
   setSelectionByMarquee,
@@ -22,6 +26,7 @@ import {
   setSingleInputPolicy
 } from "../../editor/model/graphMutations";
 import type { NodePreset } from "../../editor/presets/types";
+import { NODE_TITLE_HEIGHT, PIN_ROW_HEIGHT, PIN_TOP_PADDING } from "../../editor/model/types";
 
 describe("graphMutations", () => {
   it("creates nodes and selects the newly created node", () => {
@@ -33,6 +38,10 @@ describe("graphMutations", () => {
     expect(next.selectedNodeIds).toEqual([nodeId]);
     expect(next.nodes[nodeId].inputPinIds.length).toBe(1);
     expect(next.nodes[nodeId].outputPinIds.length).toBe(1);
+    expect(next.nodes[nodeId].isCondensed).toBe(false);
+    expect(next.nodes[nodeId].tintColor).toBeNull();
+    expect(next.nodes[nodeId].showTitleInputPin).toBe(false);
+    expect(next.nodes[nodeId].showTitleOutputPin).toBe(false);
   });
 
   it("creates a node from preset with ordered directional pins", () => {
@@ -63,6 +72,27 @@ describe("graphMutations", () => {
     expect(next.pins[node.outputPinIds[1]].label).toBe("Exec Out");
     expect(next.selectedNodeIds).toEqual([nodeId]);
     expect(next.selectedEdgeIds).toEqual([]);
+  });
+
+  it("applies optional node display fields from preset", () => {
+    const preset: NodePreset = {
+      id: "test.display",
+      title: "Display",
+      isCondensed: false,
+      tintColor: "magenta",
+      showTitleInputPin: true,
+      showTitleOutputPin: true,
+      pins: [
+        { label: "A", direction: "input" },
+        { label: "B", direction: "output" }
+      ]
+    };
+
+    const graph = makeGraph();
+    const [next, nodeId] = createNodeFromPreset(graph, { preset, x: 0, y: 0 });
+    expect(next.nodes[nodeId].tintColor).toBe("magenta");
+    expect(next.nodes[nodeId].showTitleInputPin).toBe(true);
+    expect(next.nodes[nodeId].showTitleOutputPin).toBe(true);
   });
 
   it("uses default pin values for preset pins when optional fields are omitted", () => {
@@ -248,6 +278,25 @@ describe("graphMutations", () => {
     expect(withColor.pins[pinId].color).toBe("red");
   });
 
+  it("updates node condensed/tint/title pin settings", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+
+    const withTint = setNodeTintColor(withNode, nodeId, "cyan");
+    expect(withTint.nodes[nodeId].tintColor).toBe("cyan");
+
+    const withTitlePins = setNodeTitlePinVisible(withTint, nodeId, "input", true);
+    expect(withTitlePins.nodes[nodeId].showTitleInputPin).toBe(true);
+
+    const condensed = setNodeCondensed(withTitlePins, nodeId, true);
+    expect(condensed.nodes[nodeId].isCondensed).toBe(true);
+    expect(condensed.nodes[nodeId].showTitleInputPin).toBe(false);
+    expect(condensed.nodes[nodeId].showTitleOutputPin).toBe(false);
+
+    const ignoredWhileCondensed = setNodeTitlePinVisible(condensed, nodeId, "output", true);
+    expect(ignoredWhileCondensed).toBe(condensed);
+  });
+
   it("no-ops pin style updates when pin is missing or unchanged", () => {
     const base = makeGraph();
     const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
@@ -397,6 +446,52 @@ describe("graphMutations", () => {
 
     const replaced = replaceGraphState(base, malformed as typeof withNode);
     expect(replaced.pins[pinId].shape).toBe("circle");
+  });
+
+  it("sanitizes unknown node tint values and condensed title pin invariant", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 0, y: 0, title: "Node" });
+    const malformed = {
+      ...withNode,
+      nodes: {
+        ...withNode.nodes,
+        [nodeId]: {
+          ...withNode.nodes[nodeId],
+          isCondensed: true,
+          tintColor: "orange",
+          showTitleInputPin: true,
+          showTitleOutputPin: true
+        }
+      }
+    };
+
+    const replaced = replaceGraphState(base, malformed as typeof withNode);
+    expect(replaced.nodes[nodeId].tintColor).toBeNull();
+    expect(replaced.nodes[nodeId].showTitleInputPin).toBe(false);
+    expect(replaced.nodes[nodeId].showTitleOutputPin).toBe(false);
+  });
+
+  it("uses title-row pin anchors when title pins are enabled", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 50, y: 70, title: "Node" });
+    const inputPinId = withNode.nodes[nodeId].inputPinIds[0];
+    const outputPinId = withNode.nodes[nodeId].outputPinIds[0];
+
+    const titledIn = setNodeTitlePinVisible(withNode, nodeId, "input", true);
+    const inAnchor = getPinCenter(titledIn, inputPinId);
+    expect(inAnchor?.y).toBe(70 + NODE_TITLE_HEIGHT / 2);
+
+    const titledOut = setNodeTitlePinVisible(titledIn, nodeId, "output", true);
+    const outAnchor = getPinCenter(titledOut, outputPinId);
+    expect(outAnchor?.y).toBe(70 + NODE_TITLE_HEIGHT / 2);
+  });
+
+  it("uses condensed body anchors without title height offset", () => {
+    const base = makeGraph();
+    const [withNode, nodeId] = createNode(base, { x: 50, y: 70, title: "Node", isCondensed: true });
+    const inputPinId = withNode.nodes[nodeId].inputPinIds[0];
+    const anchor = getPinCenter(withNode, inputPinId);
+    expect(anchor?.y).toBe(70 + PIN_TOP_PADDING + PIN_ROW_HEIGHT / 2);
   });
 
   it("rebases id sequences after replacing graph state", () => {

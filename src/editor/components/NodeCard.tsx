@@ -50,6 +50,11 @@ export function NodeCard({
     }
   }, [editingNode, node.title]);
 
+  const titleInputPin = !node.isCondensed && node.showTitleInputPin ? inputPins[0] : undefined;
+  const titleOutputPin = !node.isCondensed && node.showTitleOutputPin ? outputPins[0] : undefined;
+  const bodyInputPins = !node.isCondensed && node.showTitleInputPin ? inputPins.slice(1) : inputPins;
+  const bodyOutputPins = !node.isCondensed && node.showTitleOutputPin ? outputPins.slice(1) : outputPins;
+
   const style: CSSProperties & Record<`--${string}`, string> = {
     width: `${node.width}px`,
     height: `${node.height}px`,
@@ -63,70 +68,136 @@ export function NodeCard({
     "--pin-row-height": `${layoutTokens.pin.rowHeight}px`,
     "--pin-font-size": `${layoutTokens.text.pinSize}px`
   };
+  if (node.tintColor) {
+    style["--node-tint"] = `var(--pin-color-${node.tintColor})`;
+  }
 
   return (
     <div
-      className={`node-card ${selected ? "is-selected" : ""}`}
+      className={`node-card ${selected ? "is-selected" : ""} ${node.isCondensed ? "is-condensed" : ""} ${node.tintColor ? "has-tint" : ""}`}
       style={style}
       onMouseDown={(event) => onMouseDown(event, node.id)}
       onDoubleClick={(event) => event.stopPropagation()}
     >
-      <div
-        className="node-title"
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          setEditingNode(true);
-        }}
-      >
-        {editingNode ? (
-          <input
-            className="inline-edit-input"
-            autoFocus
-            value={nodeDraft}
-            onChange={(event) => setNodeDraft(event.target.value)}
-            onFocus={(event) => event.currentTarget.select()}
-            onBlur={() => {
-              onRenameNode(node.id, nodeDraft);
-              setEditingNode(false);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
+      {!node.isCondensed ? (
+        <div
+          className="node-title"
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+            setEditingNode(true);
+          }}
+        >
+          {titleInputPin
+            ? renderPinButton(
+                titleInputPin,
+                connectedPinIds,
+                isConnecting,
+                hoveredPinId,
+                hoveredPinValid,
+                onPinMouseDown,
+                onPinMouseUp,
+                onPinMouseEnter,
+                onPinMouseLeave,
+                "pin-title pin-title-input"
+              )
+            : null}
+          {editingNode ? (
+            <input
+              className="inline-edit-input"
+              autoFocus
+              value={nodeDraft}
+              onChange={(event) => setNodeDraft(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
+              onBlur={() => {
                 onRenameNode(node.id, nodeDraft);
                 setEditingNode(false);
-              } else if (event.key === "Escape") {
-                setNodeDraft(node.title);
-                setEditingNode(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  onRenameNode(node.id, nodeDraft);
+                  setEditingNode(false);
+                } else if (event.key === "Escape") {
+                  setNodeDraft(node.title);
+                  setEditingNode(false);
+                }
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+            />
+          ) : (
+            <span className="node-title-label">{node.title}</span>
+          )}
+          {titleOutputPin
+            ? renderPinButton(
+                titleOutputPin,
+                connectedPinIds,
+                isConnecting,
+                hoveredPinId,
+                hoveredPinValid,
+                onPinMouseDown,
+                onPinMouseUp,
+                onPinMouseEnter,
+                onPinMouseLeave,
+                "pin-title pin-title-output"
+              )
+            : null}
+        </div>
+      ) : null}
+
+      <div
+        className="node-body"
+        onDoubleClick={
+          node.isCondensed
+            ? (event) => {
+                event.stopPropagation();
+                setEditingNode(true);
               }
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          />
-        ) : (
-          node.title
-        )}
-      </div>
-      <div className="node-body">
+            : undefined
+        }
+      >
+        {node.isCondensed ? (
+          <div className="node-condensed-title-wrap">
+            {editingNode ? (
+              <input
+                className="inline-edit-input"
+                autoFocus
+                value={nodeDraft}
+                onChange={(event) => setNodeDraft(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+                onBlur={() => {
+                  onRenameNode(node.id, nodeDraft);
+                  setEditingNode(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    onRenameNode(node.id, nodeDraft);
+                    setEditingNode(false);
+                  } else if (event.key === "Escape") {
+                    setNodeDraft(node.title);
+                    setEditingNode(false);
+                  }
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+              />
+            ) : (
+              <span className="node-condensed-title">{node.title}</span>
+            )}
+          </div>
+        ) : null}
+
         <div className="pin-column">
-          {inputPins.map((pin) => (
+          {bodyInputPins.map((pin) => (
             <div className="pin-row pin-row-input" key={pin.id}>
-              <button
-                className={pinClass(
-                  pin.id,
-                  pin.shape,
-                  connectedPinIds.has(pin.id),
-                  isConnecting,
-                  hoveredPinId,
-                  hoveredPinValid
-                )}
-                style={pinStyle(pin.color)}
-                onMouseDown={(event) => onPinMouseDown(event, pin.id)}
-                onMouseUp={(event) => onPinMouseUp(event, pin.id)}
-                onMouseEnter={() => onPinMouseEnter(pin.id)}
-                onMouseLeave={() => onPinMouseLeave(pin.id)}
-                title={`${pin.label} (${pin.type})`}
-                data-shape={pin.shape}
-              >
-                {renderPinGlyph(pin.shape)}
-              </button>
+              {renderPinButton(
+                pin,
+                connectedPinIds,
+                isConnecting,
+                hoveredPinId,
+                hoveredPinValid,
+                onPinMouseDown,
+                onPinMouseUp,
+                onPinMouseEnter,
+                onPinMouseLeave
+              )}
               {renderPinLabel(
                 pin,
                 editingPinId,
@@ -140,7 +211,7 @@ export function NodeCard({
         </div>
 
         <div className="pin-column pin-column-output">
-          {outputPins.map((pin) => (
+          {bodyOutputPins.map((pin) => (
             <div className="pin-row pin-row-output" key={pin.id}>
               {renderPinLabel(
                 pin,
@@ -150,25 +221,17 @@ export function NodeCard({
                 setPinDraft,
                 onRenamePin
               )}
-              <button
-                className={pinClass(
-                  pin.id,
-                  pin.shape,
-                  connectedPinIds.has(pin.id),
-                  isConnecting,
-                  hoveredPinId,
-                  hoveredPinValid
-                )}
-                style={pinStyle(pin.color)}
-                onMouseDown={(event) => onPinMouseDown(event, pin.id)}
-                onMouseUp={(event) => onPinMouseUp(event, pin.id)}
-                onMouseEnter={() => onPinMouseEnter(pin.id)}
-                onMouseLeave={() => onPinMouseLeave(pin.id)}
-                title={`${pin.label} (${pin.type})`}
-                data-shape={pin.shape}
-              >
-                {renderPinGlyph(pin.shape)}
-              </button>
+              {renderPinButton(
+                pin,
+                connectedPinIds,
+                isConnecting,
+                hoveredPinId,
+                hoveredPinValid,
+                onPinMouseDown,
+                onPinMouseUp,
+                onPinMouseEnter,
+                onPinMouseLeave
+              )}
             </div>
           ))}
         </div>
@@ -200,6 +263,41 @@ function pinStyle(color: PinModel["color"]): CSSProperties & Record<`--${string}
   return {
     "--pin-color": `var(--pin-color-${color})`
   };
+}
+
+function renderPinButton(
+  pin: PinModel,
+  connectedPinIds: ReadonlySet<string>,
+  isConnecting: boolean,
+  hoveredPinId: string | null,
+  hoveredPinValid: boolean,
+  onPinMouseDown: (event: MouseEvent<HTMLButtonElement>, pinId: string) => void,
+  onPinMouseUp: (event: MouseEvent<HTMLButtonElement>, pinId: string) => void,
+  onPinMouseEnter: (pinId: string) => void,
+  onPinMouseLeave: (pinId: string) => void,
+  extraClass = ""
+) {
+  return (
+    <button
+      className={`${pinClass(
+        pin.id,
+        pin.shape,
+        connectedPinIds.has(pin.id),
+        isConnecting,
+        hoveredPinId,
+        hoveredPinValid
+      )} ${extraClass}`.trim()}
+      style={pinStyle(pin.color)}
+      onMouseDown={(event) => onPinMouseDown(event, pin.id)}
+      onMouseUp={(event) => onPinMouseUp(event, pin.id)}
+      onMouseEnter={() => onPinMouseEnter(pin.id)}
+      onMouseLeave={() => onPinMouseLeave(pin.id)}
+      title={`${pin.label} (${pin.type})`}
+      data-shape={pin.shape}
+    >
+      {renderPinGlyph(pin.shape)}
+    </button>
+  );
 }
 
 function renderPinGlyph(shape: PinModel["shape"]) {

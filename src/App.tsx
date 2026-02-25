@@ -68,6 +68,7 @@ export function App() {
   const [draggedPin, setDraggedPin] = useState<DraggedPin>(null);
   const [pinDropTarget, setPinDropTarget] = useState<PinDropTarget>(null);
   const [expandedPinAdvanced, setExpandedPinAdvanced] = useState<Record<string, boolean>>({});
+  const [expandedNodeAdvanced, setExpandedNodeAdvanced] = useState(false);
   const [nodePicker, setNodePicker] = useState<NodePickerState>({
     open: false,
     worldX: 0,
@@ -85,6 +86,9 @@ export function App() {
   const renamePin = useGraphStore((state) => state.renamePin);
   const setPinShape = useGraphStore((state) => state.setPinShape);
   const setPinColor = useGraphStore((state) => state.setPinColor);
+  const setNodeCondensed = useGraphStore((state) => state.setNodeCondensed);
+  const setNodeTintColor = useGraphStore((state) => state.setNodeTintColor);
+  const setNodeTitlePinVisible = useGraphStore((state) => state.setNodeTitlePinVisible);
   const reorderPin = useGraphStore((state) => state.reorderPin);
   const deleteSelection = useGraphStore((state) => state.deleteSelection);
   const duplicateSelection = useGraphStore((state) => state.duplicateSelection);
@@ -203,6 +207,7 @@ export function App() {
 
   useEffect(() => {
     setExpandedPinAdvanced({});
+    setExpandedNodeAdvanced(false);
   }, [selectedNode?.id]);
 
   useEffect(() => {
@@ -1227,24 +1232,109 @@ export function App() {
                 </header>
                 <div className="right-floating-card-content">
                   <div className="inspector-block" key={selectedNode.id}>
-                    <input
-                      value={inspectorNodeDraft}
-                      onChange={(event) => setInspectorNodeDraft(event.target.value)}
-                      onFocus={(event) => event.currentTarget.select()}
-                      onBlur={(event) =>
-                        commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title);
-                          event.currentTarget.blur();
-                        } else if (event.key === "Escape") {
-                          setInspectorNodeDraft(selectedNode.title);
-                          event.currentTarget.blur();
+                    <div className="node-title-row">
+                      <input
+                        value={inspectorNodeDraft}
+                        onChange={(event) => setInspectorNodeDraft(event.target.value)}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onBlur={(event) =>
+                          commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title)
                         }
-                      }}
-                    />
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitInspectorNodeRename(selectedNode.id, event.currentTarget.value, selectedNode.title);
+                            event.currentTarget.blur();
+                          } else if (event.key === "Escape") {
+                            setInspectorNodeDraft(selectedNode.title);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
+                      <button
+                        className={`pin-advanced-toggle node-advanced-toggle ${expandedNodeAdvanced ? "is-open" : ""}`}
+                        onClick={() => setExpandedNodeAdvanced((value) => !value)}
+                        title="Toggle advanced node options"
+                        aria-label="Toggle advanced node options"
+                        aria-expanded={expandedNodeAdvanced}
+                        type="button"
+                      >
+                        <span className="material-symbols-outlined">tune</span>
+                      </button>
+                    </div>
+                    {expandedNodeAdvanced ? (
+                      <div className="pin-advanced-content node-advanced-content">
+                        <div className="node-advanced-row">
+                          <label>Condensed</label>
+                          <button
+                            type="button"
+                            className={`pin-shape-option ${selectedNode.isCondensed ? "is-active" : ""}`}
+                            aria-label="Toggle node condensed"
+                            aria-pressed={selectedNode.isCondensed}
+                            onClick={() => setNodeCondensed(selectedNode.id, !selectedNode.isCondensed)}
+                            title="Condensed node"
+                          >
+                            <span className="material-symbols-outlined">compress</span>
+                          </button>
+                        </div>
+
+                        <div className="node-advanced-row">
+                          <label>Title pins</label>
+                          <div className="node-toggle-list">
+                            <button
+                              type="button"
+                              className={`pin-shape-option ${selectedNode.showTitleInputPin ? "is-active" : ""}`}
+                              aria-label="Toggle node title input pin"
+                              aria-pressed={selectedNode.showTitleInputPin}
+                              disabled={selectedNode.isCondensed}
+                              onClick={() =>
+                                setNodeTitlePinVisible(selectedNode.id, "input", !selectedNode.showTitleInputPin)
+                              }
+                              title="Title input pin"
+                            >
+                              <span className="material-symbols-outlined">west</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`pin-shape-option ${selectedNode.showTitleOutputPin ? "is-active" : ""}`}
+                              aria-label="Toggle node title output pin"
+                              aria-pressed={selectedNode.showTitleOutputPin}
+                              disabled={selectedNode.isCondensed}
+                              onClick={() =>
+                                setNodeTitlePinVisible(selectedNode.id, "output", !selectedNode.showTitleOutputPin)
+                              }
+                              title="Title output pin"
+                            >
+                              <span className="material-symbols-outlined">east</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="node-advanced-row">
+                          <label>Node color</label>
+                          <div className="pin-color-grid node-color-grid">
+                            <button
+                              type="button"
+                              className={`pin-color-swatch pin-color-none ${selectedNode.tintColor === null ? "is-selected" : ""}`}
+                              onClick={() => setNodeTintColor(selectedNode.id, null)}
+                              title="No color"
+                              aria-label="Set node color none"
+                            />
+                            {PIN_COLOR_OPTIONS.map((color) => (
+                              <button
+                                key={color}
+                                type="button"
+                                className={`pin-color-swatch ${selectedNode.tintColor === color ? "is-selected" : ""}`}
+                                style={{ backgroundColor: `var(--pin-color-${color})` }}
+                                onClick={() => setNodeTintColor(selectedNode.id, color as PinColor)}
+                                title={color}
+                                aria-label={`Set node color ${color}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <section className="pin-group">
                       <header>Inputs</header>

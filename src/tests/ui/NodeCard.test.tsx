@@ -12,7 +12,11 @@ function makeNode(): NodeModel {
     width: 280,
     height: 96,
     inputPinIds: ["in1"],
-    outputPinIds: ["out1"]
+    outputPinIds: ["out1"],
+    isCondensed: false,
+    tintColor: null,
+    showTitleInputPin: false,
+    showTitleOutputPin: false
   };
 }
 
@@ -173,5 +177,57 @@ describe("NodeCard inline editing", () => {
     const nextPins = container.querySelectorAll(".pin-dot");
     expect(nextPins[0].className).toContain("pin-shape-circle");
     expect(nextPins[1].className).toContain("pin-shape-square");
+  });
+
+  it("renders condensed title and hides node header", () => {
+    const { container } = render(
+      <NodeCard
+        node={{ ...makeNode(), isCondensed: true }}
+        inputPins={makePins().inputPins}
+        outputPins={makePins().outputPins}
+        selected={false}
+        isConnecting={false}
+        hoveredPinId={null}
+        hoveredPinValid={false}
+        connectedPinIds={new Set()}
+        onMouseDown={vi.fn()}
+        onPinMouseDown={vi.fn()}
+        onPinMouseUp={vi.fn()}
+        onPinMouseEnter={vi.fn()}
+        onPinMouseLeave={vi.fn()}
+        onRenameNode={vi.fn()}
+        onRenamePin={vi.fn()}
+      />
+    );
+
+    expect(container.querySelector(".node-title")).toBeNull();
+    expect(container.querySelector(".node-condensed-title")).toBeTruthy();
+  });
+
+  it("renders title pins when enabled", () => {
+    const { container } = render(
+      <NodeCard
+        node={{ ...makeNode(), showTitleInputPin: true, showTitleOutputPin: true }}
+        inputPins={makePins().inputPins}
+        outputPins={makePins().outputPins}
+        selected={false}
+        isConnecting={false}
+        hoveredPinId={null}
+        hoveredPinValid={false}
+        connectedPinIds={new Set()}
+        onMouseDown={vi.fn()}
+        onPinMouseDown={vi.fn()}
+        onPinMouseUp={vi.fn()}
+        onPinMouseEnter={vi.fn()}
+        onPinMouseLeave={vi.fn()}
+        onRenameNode={vi.fn()}
+        onRenamePin={vi.fn()}
+      />
+    );
+
+    expect(container.querySelector(".pin-title.pin-title-input")).toBeTruthy();
+    expect(container.querySelector(".pin-title.pin-title-output")).toBeTruthy();
+    expect(screen.queryByText("In")).toBeNull();
+    expect(screen.queryByText("Out")).toBeNull();
   });
 });
