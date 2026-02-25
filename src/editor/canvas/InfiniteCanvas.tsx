@@ -472,7 +472,7 @@ export function InfiniteCanvas({
       event.stopPropagation();
 
       const pin = pinsById[pinId];
-      if (!pin || pin.direction !== "output") {
+      if (!pin) {
         return;
       }
 
@@ -494,7 +494,15 @@ export function InfiniteCanvas({
       }
       event.stopPropagation();
 
-      const result = connectPins(dragState.fromPinId, pinId);
+      const pins = normalizeConnectionPins(dragState.fromPinId, pinId, pinsById);
+      if (!pins) {
+        const message = "Connect output pins to input pins only.";
+        setLastConnectError(message);
+        onConnectError(message);
+        setDragState({ mode: "idle" });
+        return;
+      }
+      const result = connectPins(pins.fromPinId, pins.toPinId);
       if (!result.success) {
         const message = connectionErrorText(result);
         setLastConnectError(message);
@@ -502,7 +510,7 @@ export function InfiniteCanvas({
       }
       setDragState({ mode: "idle" });
     },
-    [connectPins, dragState, onConnectError]
+    [connectPins, dragState, onConnectError, pinsById]
   );
 
   const onPinMouseEnter = useCallback((pinId: string) => {
@@ -530,14 +538,26 @@ export function InfiniteCanvas({
       return null;
     }
     const source = getPinCenter(graph, dragState.fromPinId);
+    const sourcePin = pinsById[dragState.fromPinId];
     if (!source) {
       return null;
     }
+    if (!sourcePin) {
+      return null;
+    }
+    const from =
+      sourcePin.direction === "output"
+        ? { x: source.x, y: source.y }
+        : { x: dragState.cursorWorldX, y: dragState.cursorWorldY };
+    const to =
+      sourcePin.direction === "output"
+        ? { x: dragState.cursorWorldX, y: dragState.cursorWorldY }
+        : { x: source.x, y: source.y };
     return {
-      path: makeCurve(source.x, source.y, dragState.cursorWorldX, dragState.cursorWorldY),
+      path: makeCurve(from.x, from.y, to.x, to.y),
       color: hoveredPinId && !hoveredPinValid ? "#ff5b67" : "#86d9ff"
     };
-  }, [dragState, graph, hoveredPinId, hoveredPinValid]);
+  }, [dragState, graph, hoveredPinId, hoveredPinValid, pinsById]);
 
   const marqueeRect = useMemo(() => {
     if (dragState.mode !== "marquee") {
@@ -647,11 +667,30 @@ function isHoveredPinValid(
   if (!source || !target) {
     return false;
   }
-  return (
-    source.direction === "output" &&
-    target.direction === "input" &&
-    (allowSameNodeConnections || source.nodeId !== target.nodeId)
-  );
+  const pins = normalizeConnectionPins(dragState.fromPinId, hoveredPinId, pinsById);
+  if (!pins) {
+    return false;
+  }
+  return allowSameNodeConnections || pinsById[pins.fromPinId].nodeId !== pinsById[pins.toPinId].nodeId;
+}
+
+function normalizeConnectionPins(
+  firstPinId: string,
+  secondPinId: string,
+  pinsById: Record<string, PinModel>
+): { fromPinId: string; toPinId: string } | null {
+  const first = pinsById[firstPinId];
+  const second = pinsById[secondPinId];
+  if (!first || !second) {
+    return null;
+  }
+  if (first.direction === "output" && second.direction === "input") {
+    return { fromPinId: firstPinId, toPinId: secondPinId };
+  }
+  if (first.direction === "input" && second.direction === "output") {
+    return { fromPinId: secondPinId, toPinId: firstPinId };
+  }
+  return null;
 }
 
 function connectionErrorText(result: ConnectResult): string {
