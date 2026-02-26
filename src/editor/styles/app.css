@@ -17,6 +17,15 @@
   --toolbar-bg: #1f2631;
   --selection: #ff8f2d;
   --wire-color: #c8d2e2;
+  --node-radius: 10px;
+  --node-border-width: 1px;
+  --node-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --node-selected-shadow:
+    0 0 0 2px rgba(255, 143, 45, 0.72),
+    0 0 22px rgba(255, 116, 0, 0.52),
+    0 0 36px rgba(255, 116, 0, 0.28);
+  --node-tint-gradient-opacity: 0.34;
+  --node-tint-solid-opacity: 0;
   --pin-color-white: #f0f5ff;
   --pin-color-red: #ff6d7a;
   --pin-color-blue: #6aa8ff;
@@ -1225,11 +1234,11 @@ input[type="checkbox"] {
 
 .node-card {
   position: absolute;
-  border: 1px solid var(--node-border);
+  border: var(--node-border-width) solid var(--node-border);
   background: var(--node-bg);
-  border-radius: 10px;
+  border-radius: var(--node-radius);
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--node-shadow);
   user-select: none;
   cursor: grab;
 }
@@ -1245,20 +1254,31 @@ input[type="checkbox"] {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--node-tint) 34%, transparent),
-    color-mix(in srgb, var(--node-tint) 8%, transparent)
-  );
+  background: linear-gradient(135deg, var(--node-tint), transparent);
+  opacity: var(--node-tint-gradient-opacity);
+  z-index: 0;
   pointer-events: none;
+}
+
+.node-card.has-tint .node-title::after,
+.node-card.is-condensed.has-tint .node-body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--node-tint);
+  opacity: var(--node-tint-solid-opacity);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.node-card.is-condensed.has-tint .node-body .pin-column {
+  position: relative;
+  z-index: 1;
 }
 
 .node-card.is-selected {
   border-color: var(--selection);
-  box-shadow:
-    0 0 0 2px rgba(255, 143, 45, 0.72),
-    0 0 22px rgba(255, 116, 0, 0.52),
-    0 0 36px rgba(255, 116, 0, 0.28);
+  box-shadow: var(--node-selected-shadow);
 }
 
 .node-title {
@@ -1293,6 +1313,7 @@ input[type="checkbox"] {
   display: grid;
   place-items: center;
   pointer-events: none;
+  z-index: 1;
 }
 
 .node-condensed-title-wrap .inline-edit-input,

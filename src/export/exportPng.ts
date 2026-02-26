@@ -29,6 +29,15 @@ type NodePinLayout = {
   bodyOutputPinIds: string[];
 };
 
+type NodeRenderStyle = {
+  radius: number;
+  borderWidth: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  shadowBlur: number;
+  shadowColor: string;
+};
+
 export function exportGraphToPng(
   graph: GraphModel,
   mode: ExportMode,
@@ -229,6 +238,7 @@ function drawNodes(
   theme: ReturnType<typeof getThemePreset>
 ): void {
   const connectedPinIds = getConnectedPinIds(graph);
+  const nodeStyle = resolveThemeNodeRenderStyle(theme);
   for (const nodeId of graph.order) {
     const node = graph.nodes[nodeId];
     if (!node) {
@@ -238,8 +248,19 @@ function drawNodes(
     const x = node.x + offsetX;
     const y = node.y + offsetY;
 
-    drawRoundedRect(ctx, x, y, node.width, node.height, layoutTokens.node.borderRadius, theme.export.nodeFill, theme.export.nodeStroke);
-    drawNodeTintOverlay(ctx, node, x, y, theme);
+    drawNodeShadow(ctx, x, y, node.width, node.height, nodeStyle);
+    drawRoundedRect(
+      ctx,
+      x,
+      y,
+      node.width,
+      node.height,
+      nodeStyle.radius,
+      theme.export.nodeFill,
+      theme.export.nodeStroke,
+      nodeStyle.borderWidth
+    );
+    drawNodeTintOverlay(ctx, node, x, y, theme, nodeStyle.radius);
     drawNodeTitle(ctx, node, x, y, theme);
     if (!node.isCondensed) {
       drawNodeDivider(ctx, x, y, node.width, theme.export.divider);
@@ -331,7 +352,8 @@ function drawNodeTintOverlay(
   node: NodeModel,
   x: number,
   y: number,
-  theme: ReturnType<typeof getThemePreset>
+  theme: ReturnType<typeof getThemePreset>,
+  borderRadius: number
 ): void {
   if (!node.tintColor) {
     return;
@@ -341,12 +363,12 @@ function drawNodeTintOverlay(
   const overlayTop = y;
   const overlayHeight = node.isCondensed ? node.height : NODE_TITLE_HEIGHT;
   const gradient = ctx.createLinearGradient(x, overlayTop, x + node.width, overlayTop + overlayHeight);
-  gradient.addColorStop(0, withAlpha(tint, 0.34));
-  gradient.addColorStop(1, withAlpha(tint, 0.08));
+  gradient.addColorStop(0, withAlpha(tint, theme.export.nodeTintAlphaStart));
+  gradient.addColorStop(1, withAlpha(tint, theme.export.nodeTintAlphaEnd));
 
   const prevFillStyle = ctx.fillStyle;
   ctx.save();
-  roundedRectPath(ctx, x, y, node.width, node.height, layoutTokens.node.borderRadius);
+  roundedRectPath(ctx, x, y, node.width, node.height, borderRadius);
   ctx.clip();
   ctx.fillStyle = gradient;
   ctx.fillRect(x, overlayTop, node.width, overlayHeight);
@@ -425,13 +447,45 @@ function roundedRectPath(
   height: number,
   radius: number
 ): void {
+  const resolvedRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
   ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + width, y, x + width, y + height, radius);
-  ctx.arcTo(x + width, y + height, x, y + height, radius);
-  ctx.arcTo(x, y + height, x, y, radius);
-  ctx.arcTo(x, y, x + width, y, radius);
+  if (resolvedRadius <= 0) {
+    ctx.rect(x, y, width, height);
+    ctx.closePath();
+    return;
+  }
+  ctx.moveTo(x + resolvedRadius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, resolvedRadius);
+  ctx.arcTo(x + width, y + height, x, y + height, resolvedRadius);
+  ctx.arcTo(x, y + height, x, y, resolvedRadius);
+  ctx.arcTo(x, y, x + width, y, resolvedRadius);
   ctx.closePath();
+}
+
+function drawNodeShadow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  style: NodeRenderStyle
+): void {
+  if (style.shadowColor === "transparent") {
+    return;
+  }
+  if (style.shadowOffsetX === 0 && style.shadowOffsetY === 0 && style.shadowBlur === 0) {
+    return;
+  }
+  const prevFilter = "filter" in ctx ? ctx.filter : undefined;
+  if (style.shadowBlur > 0 && "filter" in ctx) {
+    ctx.filter = `blur(${style.shadowBlur}px)`;
+  }
+  ctx.fillStyle = style.shadowColor;
+  roundedRectPath(ctx, x + style.shadowOffsetX, y + style.shadowOffsetY, width, height, style.radius);
+  ctx.fill();
+  if ("filter" in ctx) {
+    ctx.filter = prevFilter ?? "none";
+  }
 }
 
 function withAlpha(color: string, alpha: number): string {
@@ -490,21 +544,27 @@ function drawRoundedRect(
   height: number,
   radius: number,
   fill: string,
-  stroke: string
+  stroke: string,
+  borderWidth: number
 ): void {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + width, y, x + width, y + height, radius);
-  ctx.arcTo(x + width, y + height, x, y + height, radius);
-  ctx.arcTo(x, y + height, x, y, radius);
-  ctx.arcTo(x, y, x + width, y, radius);
-  ctx.closePath();
+  roundedRectPath(ctx, x, y, width, height, radius);
 
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.strokeStyle = stroke;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = borderWidth;
   ctx.stroke();
+}
+
+function resolveThemeNodeRenderStyle(theme: ReturnType<typeof getThemePreset>): NodeRenderStyle {
+  return {
+    radius: theme.export.nodeRadius,
+    borderWidth: theme.export.nodeBorderWidth,
+    shadowOffsetX: theme.export.nodeShadowOffsetX,
+    shadowOffsetY: theme.export.nodeShadowOffsetY,
+    shadowBlur: theme.export.nodeShadowBlur,
+    shadowColor: theme.export.nodeShadowColor
+  };
 }
 
 function drawFramePreset(
@@ -574,9 +634,11 @@ export const __testables = {
   resolvePngFilename,
   computeOutputMetrics,
   drawPinGlyph,
+  drawNodeShadow,
   tracePinShapePath,
   getConnectedPinIds,
   resolvePinColor,
+  resolveThemeNodeRenderStyle,
   resolveNodePinLayout,
   truncateText,
   withAlpha

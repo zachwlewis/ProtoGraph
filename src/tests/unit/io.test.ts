@@ -93,4 +93,36 @@ describe("persistence io", () => {
       frameTitle: "ProtoGraph mockup"
     });
   });
+
+  it("accepts brutal theme metadata", async () => {
+    const graph = makeGraph();
+    const file = makeJsonFile(
+      JSON.stringify({
+        graph,
+        name: "Brutal Graph",
+        themePresetId: "brutal"
+      }),
+      "brutal.json"
+    );
+
+    const parsed = await parseGraphJsonFile(file);
+    expect(parsed.name).toBe("Brutal Graph");
+    expect(parsed.themePresetId).toBe("brutal");
+  });
+
+  it("accepts brutal dark theme metadata", async () => {
+    const graph = makeGraph();
+    const file = makeJsonFile(
+      JSON.stringify({
+        graph,
+        name: "Brutal Dark Graph",
+        themePresetId: "brutalDark"
+      }),
+      "brutal-dark.json"
+    );
+
+    const parsed = await parseGraphJsonFile(file);
+    expect(parsed.name).toBe("Brutal Dark Graph");
+    expect(parsed.themePresetId).toBe("brutalDark");
+  });
 });

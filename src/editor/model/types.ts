@@ -46,7 +46,7 @@ export type Viewport = {
 
 export type NavigationMode = "auto" | "mouse" | "trackpad";
 export type ResolvedNavigationMode = "mouse" | "trackpad" | null;
-export type ThemePresetId = "midnight" | "blueprint" | "slate" | "blender";
+export type ThemePresetId = "midnight" | "blueprint" | "slate" | "blender" | "brutal" | "brutalDark";
 
 export type ExportPrefs = {
   scale: number;

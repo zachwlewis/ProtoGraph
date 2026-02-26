@@ -33,6 +33,27 @@ describe("App inspector accessibility", () => {
     );
   });
 
+  it("includes brutal theme variants in the global theme preset selector", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+
+    const propertiesButton = container.querySelector(
+      'button[aria-label="Graph Properties"]'
+    ) as HTMLButtonElement | null;
+    expect(propertiesButton).toBeTruthy();
+    await user.click(propertiesButton!);
+
+    await waitFor(() => {
+      expect(container.querySelector(".floating-panel-content select")).toBeTruthy();
+    });
+
+    const themeSelect = container.querySelector(".floating-panel-content select") as HTMLSelectElement | null;
+    expect(themeSelect).toBeTruthy();
+    const labels = Array.from(themeSelect!.options).map((option) => option.textContent);
+    expect(labels).toContain("Brutal Light");
+    expect(labels).toContain("Brutal Dark");
+  });
+
   it("shows node inspector only for single selection and layout card only when enough nodes are selected", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);

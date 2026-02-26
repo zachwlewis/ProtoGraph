@@ -5,6 +5,12 @@ export type ThemePreset = {
   id: ThemePresetId;
   label: string;
   cssVars: Record<`--${string}`, string>;
+  ui: {
+    nodeRadius: number;
+    nodeBorderWidth: number;
+    nodeShadow: string;
+    nodeSelectedShadow: string;
+  };
   export: {
     canvasBg: string;
     grid: string;
@@ -16,6 +22,14 @@ export type ThemePreset = {
     divider: string;
     frameStroke: string;
     frameTitle: string;
+    nodeRadius: number;
+    nodeBorderWidth: number;
+    nodeShadowOffsetX: number;
+    nodeShadowOffsetY: number;
+    nodeShadowBlur: number;
+    nodeShadowColor: string;
+    nodeTintAlphaStart: number;
+    nodeTintAlphaEnd: number;
     pinColors: Record<PinColor, string>;
   };
 };
@@ -40,6 +54,10 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-label": "#bbcae5",
       "--selection": "#ff8f2d",
       "--wire-color": "#c8d2e2",
+      "--node-radius": "10px",
+      "--node-border-width": "1px",
+      "--node-shadow": "0 4px 24px rgba(0, 0, 0, 0.4)",
+      "--node-selected-shadow": "0 0 0 2px rgba(255, 143, 45, 0.72), 0 0 22px rgba(255, 116, 0, 0.52), 0 0 36px rgba(255, 116, 0, 0.28)",
       "--pin-color-white": "#eef4ff",
       "--pin-color-red": "#ff6b7f",
       "--pin-color-blue": "#69a8ff",
@@ -48,6 +66,12 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-color-yellow": "#ffd36b",
       "--pin-color-cyan": "#5fe8ff",
       "--pin-color-magenta": "#ff81dc"
+    },
+    ui: {
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadow: "0 4px 24px rgba(0, 0, 0, 0.4)",
+      nodeSelectedShadow: "0 0 0 2px rgba(255, 143, 45, 0.72), 0 0 22px rgba(255, 116, 0, 0.52), 0 0 36px rgba(255, 116, 0, 0.28)"
     },
     export: {
       canvasBg: "#0f1218",
@@ -60,6 +84,14 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       divider: "#303a4a",
       frameStroke: "rgba(125, 165, 220, 0.52)",
       frameTitle: "rgba(224, 237, 255, 0.93)",
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadowOffsetX: 0,
+      nodeShadowOffsetY: 4,
+      nodeShadowBlur: 24,
+      nodeShadowColor: "rgba(0, 0, 0, 0.4)",
+      nodeTintAlphaStart: 0.34,
+      nodeTintAlphaEnd: 0.08,
       pinColors: {
         white: "#eef4ff",
         red: "#ff6b7f",
@@ -91,6 +123,10 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-label": "#bfd9f5",
       "--selection": "#ffb650",
       "--wire-color": "#c7def6",
+      "--node-radius": "10px",
+      "--node-border-width": "1px",
+      "--node-shadow": "0 4px 24px rgba(0, 0, 0, 0.4)",
+      "--node-selected-shadow": "0 0 0 2px rgba(255, 182, 80, 0.74), 0 0 22px rgba(255, 148, 58, 0.5), 0 0 36px rgba(255, 148, 58, 0.26)",
       "--pin-color-white": "#f2f8ff",
       "--pin-color-red": "#ff6f7a",
       "--pin-color-blue": "#52b6ff",
@@ -99,6 +135,12 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-color-yellow": "#ffe06b",
       "--pin-color-cyan": "#45f1ff",
       "--pin-color-magenta": "#ff73d8"
+    },
+    ui: {
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadow: "0 4px 24px rgba(0, 0, 0, 0.4)",
+      nodeSelectedShadow: "0 0 0 2px rgba(255, 182, 80, 0.74), 0 0 22px rgba(255, 148, 58, 0.5), 0 0 36px rgba(255, 148, 58, 0.26)"
     },
     export: {
       canvasBg: "#071427",
@@ -111,6 +153,14 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       divider: "#2e567d",
       frameStroke: "rgba(121, 187, 255, 0.62)",
       frameTitle: "rgba(223, 241, 255, 0.94)",
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadowOffsetX: 0,
+      nodeShadowOffsetY: 4,
+      nodeShadowBlur: 24,
+      nodeShadowColor: "rgba(0, 0, 0, 0.4)",
+      nodeTintAlphaStart: 0.34,
+      nodeTintAlphaEnd: 0.08,
       pinColors: {
         white: "#f2f8ff",
         red: "#ff6f7a",
@@ -142,6 +192,10 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-label": "#c3cddd",
       "--selection": "#ff9a42",
       "--wire-color": "#d8dee8",
+      "--node-radius": "10px",
+      "--node-border-width": "1px",
+      "--node-shadow": "0 4px 24px rgba(0, 0, 0, 0.4)",
+      "--node-selected-shadow": "0 0 0 2px rgba(255, 154, 66, 0.7), 0 0 22px rgba(255, 118, 34, 0.48), 0 0 36px rgba(255, 118, 34, 0.26)",
       "--pin-color-white": "#eceff6",
       "--pin-color-red": "#e67a84",
       "--pin-color-blue": "#78a8df",
@@ -150,6 +204,12 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-color-yellow": "#d7c070",
       "--pin-color-cyan": "#6fc6d6",
       "--pin-color-magenta": "#d68dbd"
+    },
+    ui: {
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadow: "0 4px 24px rgba(0, 0, 0, 0.4)",
+      nodeSelectedShadow: "0 0 0 2px rgba(255, 154, 66, 0.7), 0 0 22px rgba(255, 118, 34, 0.48), 0 0 36px rgba(255, 118, 34, 0.26)"
     },
     export: {
       canvasBg: "#121519",
@@ -162,6 +222,14 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       divider: "#3d4655",
       frameStroke: "rgba(171, 189, 214, 0.5)",
       frameTitle: "rgba(236, 241, 248, 0.95)",
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadowOffsetX: 0,
+      nodeShadowOffsetY: 4,
+      nodeShadowBlur: 24,
+      nodeShadowColor: "rgba(0, 0, 0, 0.4)",
+      nodeTintAlphaStart: 0.34,
+      nodeTintAlphaEnd: 0.08,
       pinColors: {
         white: "#eceff6",
         red: "#e67a84",
@@ -193,6 +261,10 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-label": "#d4d8e2",
       "--selection": "#ff9f3d",
       "--wire-color": "#d7dbe4",
+      "--node-radius": "10px",
+      "--node-border-width": "1px",
+      "--node-shadow": "0 4px 24px rgba(0, 0, 0, 0.4)",
+      "--node-selected-shadow": "0 0 0 2px rgba(255, 159, 61, 0.72), 0 0 22px rgba(255, 129, 51, 0.5), 0 0 36px rgba(255, 129, 51, 0.25)",
       "--pin-color-white": "#e7e9ec",
       "--pin-color-red": "#ee7e77",
       "--pin-color-blue": "#73a6d7",
@@ -201,6 +273,12 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       "--pin-color-yellow": "#d9c16f",
       "--pin-color-cyan": "#69c6cc",
       "--pin-color-magenta": "#cf8fbd"
+    },
+    ui: {
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadow: "0 4px 24px rgba(0, 0, 0, 0.4)",
+      nodeSelectedShadow: "0 0 0 2px rgba(255, 159, 61, 0.72), 0 0 22px rgba(255, 129, 51, 0.5), 0 0 36px rgba(255, 129, 51, 0.25)"
     },
     export: {
       canvasBg: "#1b1c1e",
@@ -213,6 +291,14 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
       divider: "#4b4f56",
       frameStroke: "rgba(198, 202, 210, 0.55)",
       frameTitle: "rgba(241, 243, 247, 0.96)",
+      nodeRadius: 10,
+      nodeBorderWidth: 1,
+      nodeShadowOffsetX: 0,
+      nodeShadowOffsetY: 4,
+      nodeShadowBlur: 24,
+      nodeShadowColor: "rgba(0, 0, 0, 0.4)",
+      nodeTintAlphaStart: 0.34,
+      nodeTintAlphaEnd: 0.08,
       pinColors: {
         white: "#e7e9ec",
         red: "#ee7e77",
@@ -224,10 +310,152 @@ export const themePresets: Record<ThemePresetId, ThemePreset> = {
         magenta: "#cf8fbd"
       }
     }
+  },
+  brutal: {
+    id: "brutal",
+    label: "Brutal Light",
+    cssVars: {
+      "--bg": "#f6f0dc",
+      "--panel": "#fff7dd",
+      "--panel-border": "#101010",
+      "--toolbar-bg": "#ffd84a",
+      "--canvas-bg": "#fff2bf",
+      "--grid": "rgba(16, 16, 16, 0.16)",
+      "--text": "#0d0d0d",
+      "--muted": "#2f2f2f",
+      "--node-bg": "#ffffff",
+      "--node-border": "#0f0f0f",
+      "--node-title": "#0f0f0f",
+      "--node-divider": "#0f0f0f",
+      "--pin-label": "#0f0f0f",
+      "--selection": "#ff2d55",
+      "--wire-color": "#101010",
+      "--node-radius": "0px",
+      "--node-border-width": "3px",
+      "--node-shadow": "8px 8px 0 #101010",
+      "--node-selected-shadow": "0 0 0 3px rgba(255, 45, 85, 0.96), 10px 10px 0 #101010",
+      "--node-tint-gradient-opacity": "0",
+      "--node-tint-solid-opacity": "1",
+      "--pin-color-white": "#d9e6ff",
+      "--pin-color-red": "#ff1744",
+      "--pin-color-blue": "#0059ff",
+      "--pin-color-green": "#00e676",
+      "--pin-color-purple": "#8c31ff",
+      "--pin-color-yellow": "#ffe600",
+      "--pin-color-cyan": "#00e5ff",
+      "--pin-color-magenta": "#ff00b8"
+    },
+    ui: {
+      nodeRadius: 0,
+      nodeBorderWidth: 3,
+      nodeShadow: "8px 8px 0 #101010",
+      nodeSelectedShadow: "0 0 0 3px rgba(255, 45, 85, 0.96), 10px 10px 0 #101010"
+    },
+    export: {
+      canvasBg: "#fff2bf",
+      grid: "rgba(16, 16, 16, 0.16)",
+      wire: "#101010",
+      nodeFill: "#ffffff",
+      nodeStroke: "#0f0f0f",
+      nodeTitle: "#0f0f0f",
+      pinLabel: "#0f0f0f",
+      divider: "#0f0f0f",
+      frameStroke: "#0f0f0f",
+      frameTitle: "#0f0f0f",
+      nodeRadius: 0,
+      nodeBorderWidth: 3,
+      nodeShadowOffsetX: 8,
+      nodeShadowOffsetY: 8,
+      nodeShadowBlur: 0,
+      nodeShadowColor: "rgba(16, 16, 16, 1)",
+      nodeTintAlphaStart: 1,
+      nodeTintAlphaEnd: 1,
+      pinColors: {
+        white: "#d9e6ff",
+        red: "#ff1744",
+        blue: "#0059ff",
+        green: "#00e676",
+        purple: "#8c31ff",
+        yellow: "#ffe600",
+        cyan: "#00e5ff",
+        magenta: "#ff00b8"
+      }
+    }
+  },
+  brutalDark: {
+    id: "brutalDark",
+    label: "Brutal Dark",
+    cssVars: {
+      "--bg": "#141414",
+      "--panel": "#181818",
+      "--panel-border": "#f2f2f2",
+      "--toolbar-bg": "#1f1f1f",
+      "--canvas-bg": "#171717",
+      "--grid": "rgba(242, 242, 242, 0.16)",
+      "--text": "#f5f5f5",
+      "--muted": "#b6b6b6",
+      "--node-bg": "#0f0f0f",
+      "--node-border": "#f5f5f5",
+      "--node-title": "#f5f5f5",
+      "--node-divider": "#f5f5f5",
+      "--pin-label": "#f5f5f5",
+      "--selection": "#00e5ff",
+      "--wire-color": "#ebebeb",
+      "--node-radius": "0px",
+      "--node-border-width": "3px",
+      "--node-shadow": "8px 8px 0 #000000",
+      "--node-selected-shadow": "0 0 0 3px rgba(0, 229, 255, 0.96), 10px 10px 0 #000000",
+      "--node-tint-gradient-opacity": "0",
+      "--node-tint-solid-opacity": "1",
+      "--pin-color-white": "#ffffff",
+      "--pin-color-red": "#ff335f",
+      "--pin-color-blue": "#2e6bff",
+      "--pin-color-green": "#24f28b",
+      "--pin-color-purple": "#a155ff",
+      "--pin-color-yellow": "#ffe74a",
+      "--pin-color-cyan": "#2bf0ff",
+      "--pin-color-magenta": "#ff3bd2"
+    },
+    ui: {
+      nodeRadius: 0,
+      nodeBorderWidth: 3,
+      nodeShadow: "8px 8px 0 #000000",
+      nodeSelectedShadow: "0 0 0 3px rgba(0, 229, 255, 0.96), 10px 10px 0 #000000"
+    },
+    export: {
+      canvasBg: "#171717",
+      grid: "rgba(242, 242, 242, 0.16)",
+      wire: "#ebebeb",
+      nodeFill: "#0f0f0f",
+      nodeStroke: "#f5f5f5",
+      nodeTitle: "#f5f5f5",
+      pinLabel: "#f5f5f5",
+      divider: "#f5f5f5",
+      frameStroke: "#f5f5f5",
+      frameTitle: "#f5f5f5",
+      nodeRadius: 0,
+      nodeBorderWidth: 3,
+      nodeShadowOffsetX: 8,
+      nodeShadowOffsetY: 8,
+      nodeShadowBlur: 0,
+      nodeShadowColor: "rgba(0, 0, 0, 1)",
+      nodeTintAlphaStart: 1,
+      nodeTintAlphaEnd: 1,
+      pinColors: {
+        white: "#ffffff",
+        red: "#ff335f",
+        blue: "#2e6bff",
+        green: "#24f28b",
+        purple: "#a155ff",
+        yellow: "#ffe74a",
+        cyan: "#2bf0ff",
+        magenta: "#ff3bd2"
+      }
+    }
   }
 };
 
-export const themePresetOrder: ThemePresetId[] = ["midnight", "blueprint", "slate", "blender"];
+export const themePresetOrder: ThemePresetId[] = ["midnight", "blueprint", "slate", "blender", "brutal", "brutalDark"];
 
 export function getThemePreset(id: ThemePresetId): ThemePreset {
   return themePresets[id];

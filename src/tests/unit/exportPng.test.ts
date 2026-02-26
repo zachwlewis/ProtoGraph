@@ -107,6 +107,46 @@ describe("exportPng helpers", () => {
     expect(__testables.truncateText(ctx, "Hello", 100)).toBe("Hello");
     expect(__testables.truncateText(ctx, "HelloWorld", 55)).toBe("He...");
   });
+
+  it("resolves node render style from theme export tokens", () => {
+    const midnightStyle = __testables.resolveThemeNodeRenderStyle(getThemePreset("midnight"));
+    expect(midnightStyle.radius).toBe(10);
+    expect(midnightStyle.borderWidth).toBe(1);
+
+    const brutalStyle = __testables.resolveThemeNodeRenderStyle(getThemePreset("brutal"));
+    expect(brutalStyle.radius).toBe(0);
+    expect(brutalStyle.borderWidth).toBe(3);
+    expect(brutalStyle.shadowOffsetX).toBe(8);
+    expect(brutalStyle.shadowOffsetY).toBe(8);
+    expect(brutalStyle.shadowBlur).toBe(0);
+
+    const brutalDarkStyle = __testables.resolveThemeNodeRenderStyle(getThemePreset("brutalDark"));
+    expect(brutalDarkStyle.radius).toBe(0);
+    expect(brutalDarkStyle.borderWidth).toBe(3);
+    expect(brutalDarkStyle.shadowOffsetX).toBe(8);
+    expect(brutalDarkStyle.shadowOffsetY).toBe(8);
+    expect(brutalDarkStyle.shadowBlur).toBe(0);
+  });
+
+  it("skips drawing node shadow when style does not offset or blur", () => {
+    const ctx = makeMockCanvasContext();
+    __testables.drawNodeShadow(ctx, 10, 20, 140, 80, {
+      radius: 10,
+      borderWidth: 1,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      shadowBlur: 0,
+      shadowColor: "rgba(0, 0, 0, 0.4)"
+    });
+    expect(ctx.fill).not.toHaveBeenCalled();
+  });
+
+  it("draws node shadow with preset shadow style", () => {
+    const ctx = makeMockCanvasContext();
+    const style = __testables.resolveThemeNodeRenderStyle(getThemePreset("brutal"));
+    __testables.drawNodeShadow(ctx, 10, 20, 140, 80, style);
+    expect(ctx.fill).toHaveBeenCalledTimes(1);
+  });
 });
 
 function makeMockCanvasContext(): CanvasRenderingContext2D {
@@ -117,9 +157,16 @@ function makeMockCanvasContext(): CanvasRenderingContext2D {
     lineTo: vi.fn(),
     closePath: vi.fn(),
     rect: vi.fn(),
+    arcTo: vi.fn(),
     quadraticCurveTo: vi.fn(),
+    fillRect: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    clip: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
+    filter: "none",
     fillStyle: "",
     strokeStyle: "",
     lineWidth: 1

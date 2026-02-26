@@ -59,7 +59,14 @@ function isGraphPayload(value: unknown): value is {
 }
 
 function parseThemePresetId(value: unknown): ThemePresetId | null {
-  if (value === "midnight" || value === "blueprint" || value === "slate" || value === "blender") {
+  if (
+    value === "midnight" ||
+    value === "blueprint" ||
+    value === "slate" ||
+    value === "blender" ||
+    value === "brutal" ||
+    value === "brutalDark"
+  ) {
     return value;
   }
   return null;
