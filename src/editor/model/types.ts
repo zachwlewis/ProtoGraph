@@ -85,7 +85,7 @@ export type SavedGraph = {
 
 export type GraphLibrary = {
   version: 2;
-  activeGraphId: string;
+  activeGraphId: string | null;
   graphs: Record<string, SavedGraph>;
   order: string[];
   settings: AppSettings;

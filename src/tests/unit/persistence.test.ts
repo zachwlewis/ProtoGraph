@@ -82,4 +82,40 @@ describe("persistence storage", () => {
     clearStoredLibrary();
     expect(loadLibraryFromStorage()).toBeNull();
   });
+
+  it("supports loading an empty library snapshot", () => {
+    saveLibraryToStorage({
+      version: 2,
+      activeGraphId: null,
+      order: [],
+      settings: {
+        navigationMode: "auto",
+        resolvedNavigationMode: null
+      },
+      graphs: {}
+    });
+
+    const loaded = loadLibraryFromStorage();
+    expect(loaded).toBeTruthy();
+    expect(loaded?.activeGraphId).toBeNull();
+    expect(loaded?.order).toEqual([]);
+  });
+
+  it("rejects a library snapshot with missing active graph id target", () => {
+    window.localStorage.setItem(
+      "protograph.library.v2",
+      JSON.stringify({
+        version: 2,
+        activeGraphId: "missing",
+        order: [],
+        settings: {
+          navigationMode: "auto",
+          resolvedNavigationMode: null
+        },
+        graphs: {}
+      })
+    );
+
+    expect(loadLibraryFromStorage()).toBeNull();
+  });
 });

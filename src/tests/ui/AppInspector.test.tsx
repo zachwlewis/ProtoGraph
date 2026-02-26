@@ -1,10 +1,38 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../App";
+import { createNode, makeGraph } from "../../editor/model/graphMutations";
+import { DEFAULT_EXPORT_PREFS } from "../../editor/model/types";
 import { PIN_COLOR_OPTIONS } from "../../editor/theme/pinPalette";
 import { useGraphStore } from "../../editor/store/useGraphStore";
 
 describe("App inspector accessibility", () => {
+  beforeEach(() => {
+    const [seeded] = createNode(makeGraph(), { x: 120, y: 120, title: "Example Node" });
+    window.localStorage.setItem(
+      "protograph.library.v2",
+      JSON.stringify({
+        version: 2,
+        activeGraphId: "graph_seed",
+        order: ["graph_seed"],
+        settings: {
+          navigationMode: "auto",
+          resolvedNavigationMode: null
+        },
+        graphs: {
+          graph_seed: {
+            id: "graph_seed",
+            name: "Seed",
+            updatedAt: Date.now(),
+            graph: seeded,
+            exportPrefs: { ...DEFAULT_EXPORT_PREFS },
+            themePresetId: "midnight"
+          }
+        }
+      })
+    );
+  });
+
   it("shows node inspector only for single selection and layout card only when enough nodes are selected", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);

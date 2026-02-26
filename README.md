@@ -5,8 +5,13 @@ Offline-first web app for quickly mocking up node graph screenshots.
 ## Current Features
 
 - Infinite canvas with pan/zoom and grid
+- Home screen workflow:
+  - Home button to switch between editor and home
+  - Create new graphs from Home (blank or demo templates)
+  - Manage graphs from Home (open, rename, duplicate, delete)
+  - Helpful in-app learning links (controls/hotkeys)
 - Node graph editing:
-  - Add nodes from toolbar or double-click
+  - Add nodes from canvas node picker or double-click
   - Drag, multi-select, marquee select
   - Connect wires, select/delete edges
   - Inline node title + pin label editing
@@ -24,6 +29,7 @@ Offline-first web app for quickly mocking up node graph screenshots.
   - Per-graph export settings and theme preset
 - Multi-graph local library:
   - Create/switch/duplicate/delete graphs
+  - Graph management available from both Home and Graph Info panel
   - Per-graph autosave in localStorage
   - JSON import creates a new graph entry and preserves metadata when present (name/theme/export prefs)
   - JSON export for active graph includes graph metadata (name/theme/export prefs)

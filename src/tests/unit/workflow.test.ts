@@ -63,8 +63,10 @@ describe("PR3 workflow", () => {
     });
     const loaded = loadLibraryFromStorage();
     expect(loaded).toBeTruthy();
+    expect(loaded?.activeGraphId).toBeTruthy();
 
-    const restored = replaceGraphState(makeGraph(), loaded!.graphs[loaded!.activeGraphId].graph);
+    const activeGraphId = loaded!.activeGraphId!;
+    const restored = replaceGraphState(makeGraph(), loaded!.graphs[activeGraphId].graph);
     expect(restored.order.length).toBe(2);
     expect(restored.edgeOrder.length).toBe(1);
 

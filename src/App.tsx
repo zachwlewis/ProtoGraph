@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 import { InfiniteCanvas } from "./editor/canvas/InfiniteCanvas";
 import { NodePicker } from "./editor/components/NodePicker";
-import { createNode, makeGraph, replaceGraphState } from "./editor/model/graphMutations";
+import { makeGraph, replaceGraphState } from "./editor/model/graphMutations";
 import type {
   GraphLibrary,
   GraphModel,
@@ -21,6 +21,8 @@ import { PIN_COLOR_OPTIONS } from "./editor/theme/pinPalette";
 import { nodePacks } from "./editor/presets/registry";
 import { getPinShapeSvgPoints } from "./editor/utils/pinShapeGeometry";
 import { exportGraphToPng } from "./export/exportPng";
+import { HomeScreen } from "./home/HomeScreen";
+import { graphTemplates } from "./home/templates";
 import { downloadGraphJson, parseGraphJsonFile } from "./persistence/io";
 import type { ParsedGraphJson } from "./persistence/io";
 import { loadLibraryFromStorage, saveLibraryToStorage } from "./persistence/storage";
@@ -55,6 +57,7 @@ export function App() {
   const lastSelectedNodeRef = useRef<GraphModel["nodes"][string] | null>(null);
   const pinDragTransactionOpenRef = useRef(false);
   const [library, setLibrary] = useState<GraphLibrary | null>(null);
+  const [view, setView] = useState<"home" | "editor">("editor");
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [inspectorNodeDraft, setInspectorNodeDraft] = useState("");
   const [inspectorPinDrafts, setInspectorPinDrafts] = useState<Record<string, string>>({});
@@ -142,6 +145,9 @@ export function App() {
 
   const activeSavedGraph = useMemo(() => {
     if (!library) {
+      return null;
+    }
+    if (!library.activeGraphId) {
       return null;
     }
     return library.graphs[library.activeGraphId] ?? null;
@@ -281,13 +287,16 @@ export function App() {
     didHydrateInitial.current = true;
 
     const loaded = loadLibraryFromStorage();
-    const initial = loaded ?? createInitialLibrary();
+    const initial = loaded ?? createEmptyLibrary();
     setLibrary(initial);
+    setView(initial.activeGraphId ? "editor" : "home");
 
-    const active = initial.graphs[initial.activeGraphId];
-    if (active) {
-      activateGraphContext(initial.activeGraphId, active.graph, true);
-      pushNotice(loaded ? "Restored graph library from local storage" : "Created initial graph", "success");
+    if (initial.activeGraphId) {
+      const active = initial.graphs[initial.activeGraphId];
+      if (active) {
+        activateGraphContext(initial.activeGraphId, active.graph, true);
+        pushNotice(loaded ? "Restored graph library from local storage" : "Restored graph library", "success");
+      }
     }
   }, [activateGraphContext]);
 
@@ -298,7 +307,7 @@ export function App() {
 
     const timeout = window.setTimeout(() => {
       setLibrary((prev) => {
-        if (!prev || !prev.graphs[prev.activeGraphId]) {
+        if (!prev || !prev.activeGraphId || !prev.graphs[prev.activeGraphId]) {
           return prev;
         }
         const active = prev.graphs[prev.activeGraphId];
@@ -327,7 +336,16 @@ export function App() {
   }, [library]);
 
   useEffect(() => {
+    if (library && library.order.length === 0) {
+      setView("home");
+    }
+  }, [library]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (view !== "editor" || !activeSavedGraph) {
+        return;
+      }
       const target = event.target;
       if (
         target instanceof HTMLInputElement ||
@@ -369,7 +387,7 @@ export function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [deleteSelection, duplicateSelection, redo, undo]);
+  }, [activeSavedGraph, deleteSelection, duplicateSelection, redo, undo, view]);
 
   useEffect(() => {
     if (!notice) {
@@ -380,6 +398,9 @@ export function App() {
   }, [notice]);
 
   const onExportJson = () => {
+    if (!activeSavedGraph) {
+      return;
+    }
     const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ProtoGraph-graph";
     downloadGraphJson(
       {
@@ -415,6 +436,9 @@ export function App() {
   };
 
   const onExportPng = () => {
+    if (!activeSavedGraph) {
+      return;
+    }
     const exportName = activeSavedGraph ? toFilenameBase(activeSavedGraph.name) : "ProtoGraph";
     const prefs = activeSavedGraph?.exportPrefs ?? DEFAULT_EXPORT_PREFS;
     exportGraphToPng(
@@ -436,9 +460,29 @@ export function App() {
     pushNotice(`Exported ${prefs.includeFrame ? "framed" : "full"} PNG`, "success");
   };
 
+  const onCreateFromTemplate = (templateId: string) => {
+    const template = graphTemplates.find((entry) => entry.id === templateId);
+    if (!template) {
+      pushNotice("Template not found", "error");
+      return;
+    }
+    const imported = replaceGraphState(makeGraph(), template.payload.graph);
+    const graphMeta = resolveImportedGraphMeta(
+      {
+        graph: template.payload.graph,
+        name: template.payload.name ?? template.title,
+        themePresetId: template.payload.themePresetId ?? null,
+        exportPrefs: template.payload.exportPrefs ?? null
+      },
+      `${template.title}.json`
+    );
+    createGraphFromImport(imported, graphMeta);
+    pushNotice(`Created graph from ${template.title}`, "success");
+  };
+
   const updateActiveGraphPrefs = (updater: (current: SavedGraph["exportPrefs"]) => SavedGraph["exportPrefs"]) => {
     setLibrary((prev) => {
-      if (!prev) {
+      if (!prev || !prev.activeGraphId) {
         return prev;
       }
       const active = prev.graphs[prev.activeGraphId];
@@ -461,7 +505,7 @@ export function App() {
 
   const setActiveThemePreset = (presetId: ThemePresetId) => {
     setLibrary((prev) => {
-      if (!prev) {
+      if (!prev || !prev.activeGraphId) {
         return prev;
       }
       const active = prev.graphs[prev.activeGraphId];
@@ -522,15 +566,15 @@ export function App() {
       if (!prev || !prev.graphs[graphId]) {
         return prev;
       }
-      const current = prev.graphs[prev.activeGraphId];
-      const nextGraphs = {
-        ...prev.graphs,
-        [current.id]: {
+      const nextGraphs = { ...prev.graphs };
+      if (prev.activeGraphId && prev.graphs[prev.activeGraphId]) {
+        const current = prev.graphs[prev.activeGraphId];
+        nextGraphs[current.id] = {
           ...current,
           graph: graphSnapshot,
           updatedAt: Date.now()
-        }
-      };
+        };
+      }
       const target = nextGraphs[graphId];
       activateGraphContext(target.id, target.graph, false);
       return {
@@ -539,10 +583,15 @@ export function App() {
         graphs: nextGraphs
       };
     });
+    setView("editor");
   };
 
-  const createGraph = (name?: string) => {
-    const next = seedGraph();
+  const createGraph = (
+    name?: string,
+    next: GraphModel = makeGraph(),
+    importedMeta?: ImportedGraphMeta,
+    silentNotice = false
+  ) => {
     const graphId = createGraphId();
 
     setLibrary((prev) => {
@@ -550,23 +599,23 @@ export function App() {
         return prev;
       }
 
-      const current = prev.graphs[prev.activeGraphId];
       const nextName = name ?? nextUntitledName(prev);
-      const nextGraphs = {
-        ...prev.graphs,
-        [current.id]: {
+      const nextGraphs = { ...prev.graphs };
+      if (prev.activeGraphId && prev.graphs[prev.activeGraphId]) {
+        const current = prev.graphs[prev.activeGraphId];
+        nextGraphs[current.id] = {
           ...current,
           graph: graphSnapshot,
           updatedAt: Date.now()
-        },
-        [graphId]: {
-          id: graphId,
-          name: nextName,
-          updatedAt: Date.now(),
-          graph: next,
-          exportPrefs: { ...DEFAULT_EXPORT_PREFS },
-          themePresetId: "midnight" as const
-        }
+        };
+      }
+      nextGraphs[graphId] = {
+        id: graphId,
+        name: importedMeta?.name ?? nextName,
+        updatedAt: Date.now(),
+        graph: next,
+        exportPrefs: importedMeta?.exportPrefs ?? { ...DEFAULT_EXPORT_PREFS },
+        themePresetId: importedMeta?.themePresetId ?? ("midnight" as const)
       };
 
       activateGraphContext(graphId, next, true);
@@ -578,41 +627,14 @@ export function App() {
       };
     });
 
-    pushNotice("Created new graph", "success");
+    setView("editor");
+    if (!silentNotice) {
+      pushNotice("Created new graph", "success");
+    }
   };
 
-  const createGraphFromImport = (graph: GraphModel, importedMeta: ImportedGraphMeta) => {
-    const graphId = createGraphId();
-    setLibrary((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const current = prev.graphs[prev.activeGraphId];
-      const nextGraphs = {
-        ...prev.graphs,
-        [current.id]: {
-          ...current,
-          graph: graphSnapshot,
-          updatedAt: Date.now()
-        },
-        [graphId]: {
-          id: graphId,
-          name: importedMeta.name,
-          updatedAt: Date.now(),
-          graph,
-          exportPrefs: importedMeta.exportPrefs,
-          themePresetId: importedMeta.themePresetId
-        }
-      };
-      activateGraphContext(graphId, graph, true);
-      return {
-        ...prev,
-        activeGraphId: graphId,
-        graphs: nextGraphs,
-        order: [...prev.order, graphId]
-      };
-    });
-  };
+  const createGraphFromImport = (graph: GraphModel, importedMeta: ImportedGraphMeta) =>
+    createGraph(importedMeta.name, graph, importedMeta, true);
 
   const renameGraph = (graphId: string, name: string) => {
     const trimmed = name.trim();
@@ -671,6 +693,7 @@ export function App() {
   };
 
   const deleteGraph = (graphId: string) => {
+    let movedHome = false;
     setLibrary((prev) => {
       if (!prev || !prev.graphs[graphId]) {
         return prev;
@@ -681,28 +704,17 @@ export function App() {
       delete nextGraphs[graphId];
 
       if (nextOrder.length === 0) {
-        const seeded = seedGraph();
-        const seededId = createGraphId();
-        activateGraphContext(seededId, seeded, true);
+        movedHome = true;
         return {
           ...prev,
-          activeGraphId: seededId,
-          order: [seededId],
-          graphs: {
-            [seededId]: {
-              id: seededId,
-              name: "Untitled 1",
-              updatedAt: Date.now(),
-              graph: seeded,
-              exportPrefs: { ...DEFAULT_EXPORT_PREFS },
-              themePresetId: "midnight" as const
-            }
-          }
+          activeGraphId: null,
+          order: [],
+          graphs: {}
         };
       }
 
-      let nextActive = prev.activeGraphId;
-      if (graphId === prev.activeGraphId) {
+      let nextActive = prev.activeGraphId ?? nextOrder[0];
+      if (!nextActive || graphId === prev.activeGraphId) {
         nextActive = pickMostRecentlyUpdatedGraphId(nextOrder, nextGraphs) ?? nextOrder[0];
         activateGraphContext(nextActive, nextGraphs[nextActive].graph, false);
       }
@@ -714,6 +726,9 @@ export function App() {
         graphs: nextGraphs
       };
     });
+    if (movedHome) {
+      setView("home");
+    }
     clearGraphHistory(graphId);
     pushNotice("Deleted graph", "success");
   };
@@ -1031,8 +1046,23 @@ export function App() {
   const showNodeInspector = selectedCount === 1 && Boolean(selectedNode);
   const minLayoutSelection = Math.min(...layoutActions.map((action) => action.min));
   const showLayoutCard = selectedCount >= minLayoutSelection;
+  const hasActiveGraph = Boolean(activeSavedGraph);
+  const showEditor = view === "editor" && hasActiveGraph;
+  const savedGraphs = useMemo(() => {
+    if (!library) {
+      return [];
+    }
+    return library.order.map((graphId) => library.graphs[graphId]).filter(Boolean);
+  }, [library]);
 
-  if (!library || !activeSavedGraph) {
+  useEffect(() => {
+    if (!showEditor) {
+      setDockOpen(false);
+      setGraphDeleteConfirm(false);
+    }
+  }, [showEditor]);
+
+  if (!library) {
     return null;
   }
 
@@ -1041,12 +1071,23 @@ export function App() {
       <header className="toolbar">
         <div className="toolbar-group toolbar-group-primary">
           <label className="toolbar-select-wrap" title="Select Graph">
-            <span className="material-symbols-outlined">folder</span>
+            <span className="material-symbols-outlined">{showEditor ? "folder" : "home"}</span>
             <select
-              value={library.activeGraphId}
-              onChange={(event) => switchGraph(event.target.value)}
+              value={showEditor ? (library.activeGraphId ?? "") : "__home__"}
+              onChange={(event) => {
+                if (event.target.value === "__home__") {
+                  setView("home");
+                  return;
+                }
+                switchGraph(event.target.value);
+              }}
               aria-label="Select graph"
+              disabled={library.order.length === 0}
             >
+              {library.order.length > 0 ? <option value="__home__">Home</option> : null}
+              {library.order.length === 0 ? (
+                <option value="">No saved graphs</option>
+              ) : null}
               {library.order.map((graphId) => {
                 const graph = library.graphs[graphId];
                 if (!graph) {
@@ -1061,93 +1102,109 @@ export function App() {
             </select>
           </label>
 
-          <button className="icon-button" title="New Graph" aria-label="New Graph" onClick={() => createGraph()}>
-            <span className="material-symbols-outlined">note_add</span>
-          </button>
-
-          <button className="icon-button" title="Import JSON" aria-label="Import JSON" onClick={onImportJsonClick}>
-            <span className="material-symbols-outlined">upload_file</span>
-          </button>
-
-          <button
-            className="icon-button"
-            title="Undo (Cmd/Ctrl+Z)"
-            aria-label="Undo"
-            onClick={undo}
-            disabled={!canUndo}
-          >
-            <span className="material-symbols-outlined">undo</span>
-          </button>
-
-          <button
-            className="icon-button"
-            title="Redo (Shift+Cmd/Ctrl+Z)"
-            aria-label="Redo"
-            onClick={redo}
-            disabled={!canRedo}
-          >
-            <span className="material-symbols-outlined">redo</span>
-          </button>
-
-          <details className="toolbar-dropdown" ref={exportMenuRef}>
-            <summary title="Export options" aria-label="Export options">
-              <span className="material-symbols-outlined">download</span>
-            </summary>
-            <div className="toolbar-menu">
-              <button onClick={onExportPng} className="export-primary-btn">
-                <span className="material-symbols-outlined">image</span>
-                Export PNG
+          {showEditor ? (
+            <>
+              <button className="icon-button" title="Home" aria-label="Home" onClick={() => setView("home")}>
+                <span className="material-symbols-outlined">home</span>
               </button>
-              <div className="toolbar-menu-field">
-                <span className="toolbar-menu-label">Scale</span>
-                <select
-                  value={activeSavedGraph.exportPrefs.scale}
-                  onChange={(event) =>
-                    updateActiveGraphPrefs((prefs) => ({ ...prefs, scale: Number(event.target.value) }))
-                  }
-                >
-                  <option value="1">1x</option>
-                  <option value="1.5">1.5x</option>
-                  <option value="2">2x</option>
-                  <option value="3">3x</option>
-                </select>
-              </div>
-              <div className="toolbar-menu-field">
-                <span className="toolbar-menu-label">Margin (px)</span>
-                <input
-                  value={exportMarginDraft}
-                  onChange={(event) => setExportMarginDraft(event.target.value)}
-                  onBlur={() => {
-                    const numeric = Number(exportMarginDraft);
-                    updateActiveGraphPrefs((prefs) => ({
-                      ...prefs,
-                      margin: Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : prefs.margin
-                    }));
+
+              <button className="icon-button" title="Import JSON" aria-label="Import JSON" onClick={onImportJsonClick}>
+                <span className="material-symbols-outlined">upload_file</span>
+              </button>
+
+              <button
+                className="icon-button"
+                title="Undo (Cmd/Ctrl+Z)"
+                aria-label="Undo"
+                onClick={undo}
+                disabled={!canUndo || !showEditor}
+              >
+                <span className="material-symbols-outlined">undo</span>
+              </button>
+
+              <button
+                className="icon-button"
+                title="Redo (Shift+Cmd/Ctrl+Z)"
+                aria-label="Redo"
+                onClick={redo}
+                disabled={!canRedo || !showEditor}
+              >
+                <span className="material-symbols-outlined">redo</span>
+              </button>
+
+              <details className={`toolbar-dropdown ${!activeSavedGraph ? "is-disabled" : ""}`} ref={exportMenuRef}>
+                <summary
+                  title="Export options"
+                  aria-label="Export options"
+                  onClick={(event) => {
+                    if (!activeSavedGraph) {
+                      event.preventDefault();
+                    }
                   }}
-                />
-              </div>
-              <div className="toolbar-menu-field">
-                <span className="toolbar-menu-label">Frame Title</span>
-                <input
-                  value={exportFrameTitleDraft}
-                  onChange={(event) => setExportFrameTitleDraft(event.target.value)}
-                  onBlur={() =>
-                    updateActiveGraphPrefs((prefs) => ({ ...prefs, frameTitle: exportFrameTitleDraft }))
-                  }
-                />
-              </div>
-              <label className="toggle-row toolbar-toggle-row">
-                <input
-                  type="checkbox"
-                  checked={activeSavedGraph.exportPrefs.includeFrame}
-                  onChange={(event) =>
-                    updateActiveGraphPrefs((prefs) => ({ ...prefs, includeFrame: event.target.checked }))
-                  }
-                />
-                Include frame
-              </label>
-            </div>
-          </details>
+                >
+                  <span className="material-symbols-outlined">download</span>
+                </summary>
+                <div className="toolbar-menu">
+                  <button onClick={onExportPng} className="export-primary-btn">
+                    <span className="material-symbols-outlined">image</span>
+                    Export PNG
+                  </button>
+                  <div className="toolbar-menu-field">
+                    <span className="toolbar-menu-label">Scale</span>
+                    <select
+                      value={activeSavedGraph?.exportPrefs.scale ?? DEFAULT_EXPORT_PREFS.scale}
+                      disabled={!activeSavedGraph}
+                      onChange={(event) =>
+                        updateActiveGraphPrefs((prefs) => ({ ...prefs, scale: Number(event.target.value) }))
+                      }
+                    >
+                      <option value="1">1x</option>
+                      <option value="1.5">1.5x</option>
+                      <option value="2">2x</option>
+                      <option value="3">3x</option>
+                    </select>
+                  </div>
+                  <div className="toolbar-menu-field">
+                    <span className="toolbar-menu-label">Margin (px)</span>
+                    <input
+                      value={exportMarginDraft}
+                      disabled={!activeSavedGraph}
+                      onChange={(event) => setExportMarginDraft(event.target.value)}
+                      onBlur={() => {
+                        const numeric = Number(exportMarginDraft);
+                        updateActiveGraphPrefs((prefs) => ({
+                          ...prefs,
+                          margin: Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : prefs.margin
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="toolbar-menu-field">
+                    <span className="toolbar-menu-label">Frame Title</span>
+                    <input
+                      value={exportFrameTitleDraft}
+                      disabled={!activeSavedGraph}
+                      onChange={(event) => setExportFrameTitleDraft(event.target.value)}
+                      onBlur={() =>
+                        updateActiveGraphPrefs((prefs) => ({ ...prefs, frameTitle: exportFrameTitleDraft }))
+                      }
+                    />
+                  </div>
+                  <label className="toggle-row toolbar-toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={activeSavedGraph?.exportPrefs.includeFrame ?? false}
+                      disabled={!activeSavedGraph}
+                      onChange={(event) =>
+                        updateActiveGraphPrefs((prefs) => ({ ...prefs, includeFrame: event.target.checked }))
+                      }
+                    />
+                    Include frame
+                  </label>
+                </div>
+              </details>
+            </>
+          ) : null}
         </div>
 
         <div className="toolbar-group">
@@ -1171,23 +1228,25 @@ export function App() {
       />
 
       <main className="editor-main">
-        <InfiniteCanvas
-          navigationMode={library.settings.navigationMode}
-          resolvedNavigationMode={library.settings.resolvedNavigationMode}
-          onResolveNavigationMode={onResolveNavigationMode}
-          onConnectError={(message) => pushNotice(message, "error")}
-          onRequestNodePicker={openNodePickerAt}
-        />
-        <NodePicker
-          open={nodePicker.open}
-          anchorScreenX={nodePicker.screenX}
-          anchorScreenY={nodePicker.screenY}
-          packs={nodePacks}
-          onSelect={onPickerSelectPreset}
-          onClose={closeNodePicker}
-        />
-        {showLayoutCard || showNodeInspector ? (
-          <div className="right-floating-stack">
+        {showEditor && activeSavedGraph ? (
+          <>
+            <InfiniteCanvas
+              navigationMode={library.settings.navigationMode}
+              resolvedNavigationMode={library.settings.resolvedNavigationMode}
+              onResolveNavigationMode={onResolveNavigationMode}
+              onConnectError={(message) => pushNotice(message, "error")}
+              onRequestNodePicker={openNodePickerAt}
+            />
+            <NodePicker
+              open={nodePicker.open}
+              anchorScreenX={nodePicker.screenX}
+              anchorScreenY={nodePicker.screenY}
+              packs={nodePacks}
+              onSelect={onPickerSelectPreset}
+              onClose={closeNodePicker}
+            />
+            {showLayoutCard || showNodeInspector ? (
+              <div className="right-floating-stack">
             {showLayoutCard ? (
               <section className="right-floating-card right-floating-layout" aria-label="Layout tools">
                 <header className="right-floating-card-header">
@@ -1412,11 +1471,29 @@ export function App() {
                 </div>
               </section>
             ) : null}
-          </div>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+        {!showEditor ? (
+          <HomeScreen
+            graphs={savedGraphs}
+            activeGraphId={library.activeGraphId}
+            templates={graphTemplates}
+            onCreateBlank={() => createGraph()}
+            onCreateFromTemplate={onCreateFromTemplate}
+            onImportJson={onImportJsonClick}
+            onOpenGraph={switchGraph}
+            onRenameGraph={renameGraph}
+            onDuplicateGraph={duplicateGraph}
+            onDeleteGraph={deleteGraph}
+            onOpenHelp={() => setHelpModalOpen(true)}
+          />
         ) : null}
       </main>
 
-      <div className="floating-dock" role="toolbar" aria-label="Graph quick controls" ref={dockRef}>
+      {showEditor && activeSavedGraph ? (
+        <div className="floating-dock" role="toolbar" aria-label="Graph quick controls" ref={dockRef}>
         <button
           className={`dock-icon-btn ${dockOpen && dockSection === "settings" ? "is-active" : ""}`}
           onClick={() => openDockSection("settings")}
@@ -1441,9 +1518,10 @@ export function App() {
         >
           <span className="material-symbols-outlined">info</span>
         </button>
-      </div>
+        </div>
+      ) : null}
 
-      {dockOpen ? (
+      {showEditor && activeSavedGraph && dockOpen ? (
         <div className="floating-panel" ref={panelRef}>
           <div className="floating-panel-header">
             <strong>
@@ -1660,11 +1738,6 @@ function createGraphId(): string {
   return `graph_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function seedGraph(): GraphModel {
-  const [seeded] = createNode(makeGraph(), { x: 120, y: 120, title: "Example Node" });
-  return seeded;
-}
-
 function nextUntitledName(library: GraphLibrary): string {
   const existing = new Set(Object.values(library.graphs).map((graph) => graph.name));
   let value = 1;
@@ -1674,22 +1747,12 @@ function nextUntitledName(library: GraphLibrary): string {
   return `Untitled ${value}`;
 }
 
-function createInitialLibrary(): GraphLibrary {
-  const firstId = createGraphId();
+function createEmptyLibrary(): GraphLibrary {
   return {
     version: 2,
-    activeGraphId: firstId,
-    order: [firstId],
-    graphs: {
-      [firstId]: {
-        id: firstId,
-        name: "Untitled 1",
-        updatedAt: Date.now(),
-        graph: seedGraph(),
-        exportPrefs: { ...DEFAULT_EXPORT_PREFS },
-        themePresetId: "midnight" as const
-      }
-    },
+    activeGraphId: null,
+    order: [],
+    graphs: {},
     settings: {
       navigationMode: "auto",
       resolvedNavigationMode: null

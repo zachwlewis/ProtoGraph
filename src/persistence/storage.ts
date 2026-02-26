@@ -19,12 +19,15 @@ export function loadLibraryFromStorage(): GraphLibrary | null {
   }
   try {
     const parsed = JSON.parse(raw) as GraphLibrary;
+    const hasValidActiveGraph =
+      parsed?.activeGraphId === null ||
+      (typeof parsed?.activeGraphId === "string" && Boolean(parsed.graphs?.[parsed.activeGraphId]));
     if (
       parsed?.version !== 2 ||
-      !parsed.activeGraphId ||
       !parsed.graphs ||
       !Array.isArray(parsed.order) ||
-      !parsed.settings
+      !parsed.settings ||
+      !hasValidActiveGraph
     ) {
       return null;
     }

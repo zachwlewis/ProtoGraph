@@ -1,11 +1,36 @@
 import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../App";
+import { createNode, makeGraph } from "../../editor/model/graphMutations";
+import { DEFAULT_EXPORT_PREFS } from "../../editor/model/types";
 import { useGraphStore } from "../../editor/store/useGraphStore";
 
 describe("Node picker", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    const [seeded] = createNode(makeGraph(), { x: 120, y: 120, title: "Example Node" });
+    window.localStorage.setItem(
+      "protograph.library.v2",
+      JSON.stringify({
+        version: 2,
+        activeGraphId: "graph_seed",
+        order: ["graph_seed"],
+        settings: {
+          navigationMode: "auto",
+          resolvedNavigationMode: null
+        },
+        graphs: {
+          graph_seed: {
+            id: "graph_seed",
+            name: "Seed",
+            updatedAt: Date.now(),
+            graph: seeded,
+            exportPrefs: { ...DEFAULT_EXPORT_PREFS },
+            themePresetId: "midnight"
+          }
+        }
+      })
+    );
   });
 
   it("opens on right-click without drag", async () => {
