@@ -22,6 +22,13 @@ type Rect = {
   height: number;
 };
 
+type NodePinLayout = {
+  titleInputPinId: string | null;
+  titleOutputPinId: string | null;
+  bodyInputPinIds: string[];
+  bodyOutputPinIds: string[];
+};
+
 export function exportGraphToPng(
   graph: GraphModel,
   mode: ExportMode,
@@ -231,29 +238,12 @@ function drawNodes(
     const x = node.x + offsetX;
     const y = node.y + offsetY;
 
-    drawRoundedRect(
-      ctx,
-      x,
-      y,
-      node.width,
-      node.height,
-      layoutTokens.node.borderRadius,
-      theme.export.nodeFill,
-      theme.export.nodeStroke
-    );
-
-    ctx.fillStyle = theme.export.nodeTitle;
-    ctx.font = `${layoutTokens.text.titleWeight} ${layoutTokens.text.titleSize}px ${layoutTokens.text.family}`;
-    ctx.textBaseline = "middle";
-    ctx.fillText(node.title, x + 12, y + NODE_TITLE_HEIGHT / 2 + 1);
-
-    ctx.strokeStyle = theme.export.divider;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, y + NODE_TITLE_HEIGHT);
-    ctx.lineTo(x + node.width, y + NODE_TITLE_HEIGHT);
-    ctx.stroke();
-
+    drawRoundedRect(ctx, x, y, node.width, node.height, layoutTokens.node.borderRadius, theme.export.nodeFill, theme.export.nodeStroke);
+    drawNodeTintOverlay(ctx, node, x, y, theme);
+    drawNodeTitle(ctx, node, x, y, theme);
+    if (!node.isCondensed) {
+      drawNodeDivider(ctx, x, y, node.width, theme.export.divider);
+    }
     drawNodePins(ctx, graph, node, x, y, theme.export.pinLabel, connectedPinIds, theme);
   }
 }
@@ -272,13 +262,46 @@ function drawNodePins(
   ctx.textBaseline = "middle";
   const pinRadius = layoutTokens.pin.radius;
   const labelGap = layoutTokens.pin.labelGap;
+  const pinLayout = resolveNodePinLayout(node);
 
-  for (let i = 0; i < node.inputPinIds.length; i++) {
-    const pin = graph.pins[node.inputPinIds[i]];
+  if (pinLayout.titleInputPinId) {
+    const pin = graph.pins[pinLayout.titleInputPinId];
+    if (pin) {
+      drawPinGlyph(
+        ctx,
+        pin,
+        x + PIN_ANCHOR_INSET,
+        y + NODE_TITLE_HEIGHT / 2,
+        pinRadius,
+        connectedPinIds.has(pin.id),
+        theme
+      );
+    }
+  }
+
+  if (pinLayout.titleOutputPinId) {
+    const pin = graph.pins[pinLayout.titleOutputPinId];
+    if (pin) {
+      drawPinGlyph(
+        ctx,
+        pin,
+        x + node.width - PIN_ANCHOR_INSET,
+        y + NODE_TITLE_HEIGHT / 2,
+        pinRadius,
+        connectedPinIds.has(pin.id),
+        theme
+      );
+    }
+  }
+
+  const bodyStartY = y + (node.isCondensed ? 0 : NODE_TITLE_HEIGHT);
+
+  for (let i = 0; i < pinLayout.bodyInputPinIds.length; i++) {
+    const pin = graph.pins[pinLayout.bodyInputPinIds[i]];
     if (!pin) {
       continue;
     }
-    const cy = y + NODE_TITLE_HEIGHT + PIN_TOP_PADDING + PIN_ROW_HEIGHT * i + PIN_ROW_HEIGHT / 2;
+    const cy = bodyStartY + PIN_TOP_PADDING + PIN_ROW_HEIGHT * i + PIN_ROW_HEIGHT / 2;
     const cx = x + PIN_ANCHOR_INSET;
 
     drawPinGlyph(ctx, pin, cx, cy, pinRadius, connectedPinIds.has(pin.id), theme);
@@ -287,12 +310,12 @@ function drawNodePins(
     ctx.fillText(pin.label, cx + pinRadius + labelGap, cy);
   }
 
-  for (let i = 0; i < node.outputPinIds.length; i++) {
-    const pin = graph.pins[node.outputPinIds[i]];
+  for (let i = 0; i < pinLayout.bodyOutputPinIds.length; i++) {
+    const pin = graph.pins[pinLayout.bodyOutputPinIds[i]];
     if (!pin) {
       continue;
     }
-    const cy = y + NODE_TITLE_HEIGHT + PIN_TOP_PADDING + PIN_ROW_HEIGHT * i + PIN_ROW_HEIGHT / 2;
+    const cy = bodyStartY + PIN_TOP_PADDING + PIN_ROW_HEIGHT * i + PIN_ROW_HEIGHT / 2;
     const cx = x + node.width - PIN_ANCHOR_INSET;
 
     drawPinGlyph(ctx, pin, cx, cy, pinRadius, connectedPinIds.has(pin.id), theme);
@@ -301,6 +324,126 @@ function drawNodePins(
     ctx.fillStyle = pinLabelColor;
     ctx.fillText(pin.label, cx - pinRadius - labelGap - labelWidth, cy);
   }
+}
+
+function drawNodeTintOverlay(
+  ctx: CanvasRenderingContext2D,
+  node: NodeModel,
+  x: number,
+  y: number,
+  theme: ReturnType<typeof getThemePreset>
+): void {
+  if (!node.tintColor) {
+    return;
+  }
+
+  const tint = resolvePinColor(node.tintColor, theme);
+  const overlayTop = y;
+  const overlayHeight = node.isCondensed ? node.height : NODE_TITLE_HEIGHT;
+  const gradient = ctx.createLinearGradient(x, overlayTop, x + node.width, overlayTop + overlayHeight);
+  gradient.addColorStop(0, withAlpha(tint, 0.34));
+  gradient.addColorStop(1, withAlpha(tint, 0.08));
+
+  const prevFillStyle = ctx.fillStyle;
+  ctx.save();
+  roundedRectPath(ctx, x, y, node.width, node.height, layoutTokens.node.borderRadius);
+  ctx.clip();
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x, overlayTop, node.width, overlayHeight);
+  ctx.restore();
+  ctx.fillStyle = prevFillStyle;
+}
+
+function drawNodeTitle(
+  ctx: CanvasRenderingContext2D,
+  node: NodeModel,
+  x: number,
+  y: number,
+  theme: ReturnType<typeof getThemePreset>
+): void {
+  ctx.fillStyle = theme.export.nodeTitle;
+  ctx.font = `${layoutTokens.text.titleWeight} ${layoutTokens.text.titleSize}px ${layoutTokens.text.family}`;
+  ctx.textBaseline = "middle";
+
+  if (node.isCondensed) {
+    const textWidth = ctx.measureText(node.title).width;
+    ctx.fillText(node.title, x + (node.width - textWidth) / 2, y + node.height / 2 + 1);
+    return;
+  }
+
+  const pinLayout = resolveNodePinLayout(node);
+  const leftPad = pinLayout.titleInputPinId ? 30 : 12;
+  const rightPad = pinLayout.titleOutputPinId ? 30 : 12;
+  const maxTitleWidth = Math.max(0, node.width - leftPad - rightPad);
+  const title = truncateText(ctx, node.title, maxTitleWidth);
+  ctx.fillText(title, x + leftPad, y + NODE_TITLE_HEIGHT / 2 + 1);
+}
+
+function drawNodeDivider(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, dividerColor: string): void {
+  ctx.strokeStyle = dividerColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y + NODE_TITLE_HEIGHT);
+  ctx.lineTo(x + width, y + NODE_TITLE_HEIGHT);
+  ctx.stroke();
+}
+
+function resolveNodePinLayout(node: Pick<NodeModel, "isCondensed" | "showTitleInputPin" | "showTitleOutputPin" | "inputPinIds" | "outputPinIds">): NodePinLayout {
+  const titleInputPinId = !node.isCondensed && node.showTitleInputPin ? node.inputPinIds[0] ?? null : null;
+  const titleOutputPinId = !node.isCondensed && node.showTitleOutputPin ? node.outputPinIds[0] ?? null : null;
+  return {
+    titleInputPinId,
+    titleOutputPinId,
+    bodyInputPinIds: titleInputPinId ? node.inputPinIds.slice(1) : node.inputPinIds,
+    bodyOutputPinIds: titleOutputPinId ? node.outputPinIds.slice(1) : node.outputPinIds
+  };
+}
+
+function truncateText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (maxWidth <= 0) {
+    return "...";
+  }
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+  const ellipsis = "...";
+  if (ctx.measureText(ellipsis).width > maxWidth) {
+    return ellipsis;
+  }
+  let trimmed = text;
+  while (trimmed.length > 0 && ctx.measureText(`${trimmed}${ellipsis}`).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return `${trimmed}${ellipsis}`;
+}
+
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+function withAlpha(color: string, alpha: number): string {
+  const match = color.trim().match(/^#([0-9a-f]{6})$/i);
+  if (!match) {
+    return color;
+  }
+  const hex = match[1];
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function drawPinGlyph(
@@ -433,5 +576,8 @@ export const __testables = {
   drawPinGlyph,
   tracePinShapePath,
   getConnectedPinIds,
-  resolvePinColor
+  resolvePinColor,
+  resolveNodePinLayout,
+  truncateText,
+  withAlpha
 };

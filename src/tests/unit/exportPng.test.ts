@@ -64,6 +64,49 @@ describe("exportPng helpers", () => {
     expect(connectedCtx.fill).toHaveBeenCalledTimes(1);
     expect(connectedCtx.stroke).toHaveBeenCalledTimes(1);
   });
+
+  it("resolves title pin and body pin layout for expanded nodes", () => {
+    const layout = __testables.resolveNodePinLayout({
+      isCondensed: false,
+      showTitleInputPin: true,
+      showTitleOutputPin: true,
+      inputPinIds: ["in-a", "in-b"],
+      outputPinIds: ["out-a", "out-b"]
+    });
+    expect(layout.titleInputPinId).toBe("in-a");
+    expect(layout.titleOutputPinId).toBe("out-a");
+    expect(layout.bodyInputPinIds).toEqual(["in-b"]);
+    expect(layout.bodyOutputPinIds).toEqual(["out-b"]);
+  });
+
+  it("keeps all pins in body for condensed nodes", () => {
+    const layout = __testables.resolveNodePinLayout({
+      isCondensed: true,
+      showTitleInputPin: true,
+      showTitleOutputPin: true,
+      inputPinIds: ["in-a", "in-b"],
+      outputPinIds: ["out-a", "out-b"]
+    });
+    expect(layout.titleInputPinId).toBeNull();
+    expect(layout.titleOutputPinId).toBeNull();
+    expect(layout.bodyInputPinIds).toEqual(["in-a", "in-b"]);
+    expect(layout.bodyOutputPinIds).toEqual(["out-a", "out-b"]);
+  });
+
+  it("applies alpha to hex colors for tint overlays", () => {
+    expect(__testables.withAlpha("#69a8ff", 0.34)).toBe("rgba(105, 168, 255, 0.34)");
+    expect(__testables.withAlpha("#5FE8FF", 0.08)).toBe("rgba(95, 232, 255, 0.08)");
+    expect(__testables.withAlpha("rgb(1, 2, 3)", 0.5)).toBe("rgb(1, 2, 3)");
+  });
+
+  it("truncates long titles with ellipsis when needed", () => {
+    const ctx = {
+      measureText: (text: string) => ({ width: text.length * 10 })
+    } as CanvasRenderingContext2D;
+
+    expect(__testables.truncateText(ctx, "Hello", 100)).toBe("Hello");
+    expect(__testables.truncateText(ctx, "HelloWorld", 55)).toBe("He...");
+  });
 });
 
 function makeMockCanvasContext(): CanvasRenderingContext2D {
