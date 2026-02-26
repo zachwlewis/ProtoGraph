@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 import { InfiniteCanvas } from "./editor/canvas/InfiniteCanvas";
-import { NodePicker } from "./editor/components/NodePicker";
+import { DEFAULT_NODE_PICKER_PRESET_ID, NodePicker } from "./editor/components/NodePicker";
 import { makeGraph, replaceGraphState } from "./editor/model/graphMutations";
 import type {
   GraphLibrary,
@@ -82,6 +82,7 @@ export function App() {
   });
 
   const addPin = useGraphStore((state) => state.addPin);
+  const addNodeAt = useGraphStore((state) => state.addNodeAt);
   const addNodeFromPresetAt = useGraphStore((state) => state.addNodeFromPresetAt);
   const connectPins = useGraphStore((state) => state.connectPins);
   const removePin = useGraphStore((state) => state.removePin);
@@ -1005,31 +1006,44 @@ export function App() {
   };
 
   const onPickerSelectPreset = (presetId: string) => {
-    const nodeId = addNodeFromPresetAt(nodePicker.worldX - 120, nodePicker.worldY - 30, presetId);
-    if (!nodeId) {
-      pushNotice("Node preset not found", "error");
-      return;
-    }
-    if (nodePicker.connectFromPinId) {
-      const state = useGraphStore.getState();
-      const sourcePin = state.pins[nodePicker.connectFromPinId];
-      const createdNode = state.nodes[nodeId];
-      if (sourcePin && createdNode) {
-        const targetPinId =
-          sourcePin.direction === "output" ? createdNode.inputPinIds[0] : createdNode.outputPinIds[0];
-        if (targetPinId) {
-          const fromPinId = sourcePin.direction === "output" ? sourcePin.id : targetPinId;
-          const toPinId = sourcePin.direction === "output" ? targetPinId : sourcePin.id;
-          const result = connectPins(fromPinId, toPinId);
-          if (!result.success) {
-            pushNotice("Created node, but connection failed", "error");
+    beginHistoryTransaction();
+    try {
+      const stateBeforeCreate = useGraphStore.getState();
+      const sourcePin = nodePicker.connectFromPinId ? stateBeforeCreate.pins[nodePicker.connectFromPinId] : undefined;
+      const nodeId =
+        presetId === DEFAULT_NODE_PICKER_PRESET_ID
+          ? addNodeAt(nodePicker.worldX - 120, nodePicker.worldY - 30, "Node")
+          : addNodeFromPresetAt(nodePicker.worldX - 120, nodePicker.worldY - 30, presetId);
+      if (!nodeId) {
+        pushNotice("Node preset not found", "error");
+        return;
+      }
+      if (nodePicker.connectFromPinId) {
+        const state = useGraphStore.getState();
+        const createdNode = state.nodes[nodeId];
+        if (sourcePin && createdNode) {
+          const targetPinId =
+            sourcePin.direction === "output" ? createdNode.inputPinIds[0] : createdNode.outputPinIds[0];
+          if (targetPinId) {
+            if (presetId === DEFAULT_NODE_PICKER_PRESET_ID) {
+              setPinShape(targetPinId, sourcePin.shape);
+              setPinColor(targetPinId, sourcePin.color);
+            }
+            const fromPinId = sourcePin.direction === "output" ? sourcePin.id : targetPinId;
+            const toPinId = sourcePin.direction === "output" ? targetPinId : sourcePin.id;
+            const result = connectPins(fromPinId, toPinId);
+            if (!result.success) {
+              pushNotice("Created node, but connection failed", "error");
+            }
+          } else {
+            pushNotice("Created node, but no compatible pin was available", "error");
           }
-        } else {
-          pushNotice("Created node, but no compatible pin was available", "error");
         }
       }
+      closeNodePicker();
+    } finally {
+      endHistoryTransaction();
     }
-    closeNodePicker();
   };
 
   const layoutActions = [

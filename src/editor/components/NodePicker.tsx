@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { NodePack, NodePreset } from "../presets/types";
 
+export const DEFAULT_NODE_PICKER_PRESET_ID = "__default_node__";
+
 type NodePickerProps = {
   open: boolean;
   anchorScreenX: number;
@@ -42,13 +44,18 @@ export function NodePicker({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const defaultOption = options.find((option) => option.presetId === DEFAULT_NODE_PICKER_PRESET_ID);
     if (!q) {
       return options;
     }
-    return options.filter((option) => {
+    const matches = options.filter((option) => {
+      if (option.presetId === DEFAULT_NODE_PICKER_PRESET_ID) {
+        return false;
+      }
       const haystack = `${option.title} ${option.packLabel} ${option.category} ${option.tags.join(" ")}`.toLowerCase();
       return haystack.includes(q);
     });
+    return defaultOption ? [defaultOption, ...matches] : matches;
   }, [options, query]);
 
   const groups = useMemo(() => {
@@ -187,7 +194,16 @@ export function NodePicker({
 }
 
 function flattenOptions(packs: NodePack[]): PickerOption[] {
-  const options: PickerOption[] = [];
+  const options: PickerOption[] = [
+    {
+      presetId: DEFAULT_NODE_PICKER_PRESET_ID,
+      title: "Default Node",
+      category: "Quick Create",
+      packId: "__default__",
+      packLabel: "Canvas",
+      tags: ["default", "node", "quick", "create"]
+    }
+  ];
   for (const pack of packs) {
     for (const preset of pack.presets) {
       options.push(toOption(pack.id, pack.label, preset));

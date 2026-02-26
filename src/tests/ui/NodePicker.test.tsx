@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../App";
 import { createNode, makeGraph } from "../../editor/model/graphMutations";
@@ -106,6 +106,27 @@ describe("Node picker", () => {
     expect(titles).toContain("Multiply");
   });
 
+  it("always shows Default Node in search results", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    const canvas = container.querySelector(".canvas-root") as HTMLDivElement | null;
+    expect(canvas).toBeTruthy();
+
+    fireEvent.mouseDown(canvas!, { button: 2, clientX: 320, clientY: 200 });
+    fireEvent.mouseUp(window, { button: 2, clientX: 320, clientY: 200 });
+
+    const picker = await waitFor(() => {
+      const value = container.querySelector(".node-picker") as HTMLElement | null;
+      expect(value).toBeTruthy();
+      return value!;
+    });
+
+    const search = within(picker).getByLabelText("Search nodes");
+    await user.type(search, "zzzz-no-results");
+
+    expect(within(picker).getByRole("option", { name: /Default Node/i })).toBeTruthy();
+  });
+
   it("double-click creates a default node and does not open picker", async () => {
     const { container } = render(<App />);
     const canvas = container.querySelector(".canvas-root") as HTMLDivElement | null;
@@ -158,5 +179,46 @@ describe("Node picker", () => {
     const newestEdge = stateAfter.edges[stateAfter.edgeOrder[stateAfter.edgeOrder.length - 1]];
     expect(newestEdge.fromPinId).toBe(sourcePinId);
     expect(newestEdge.toPinId).toBe(newestNode.inputPinIds[0]);
+  });
+
+  it("creates a default node with matching pin style from dragged wire", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    const canvas = container.querySelector(".canvas-root") as HTMLDivElement | null;
+    expect(canvas).toBeTruthy();
+
+    const stateBefore = useGraphStore.getState();
+    const sourceNodeId = stateBefore.order[0];
+    const sourcePinId = stateBefore.nodes[sourceNodeId].outputPinIds[0];
+    act(() => {
+      useGraphStore.getState().setPinShape(sourcePinId, "diamond");
+      useGraphStore.getState().setPinColor(sourcePinId, "red");
+    });
+
+    const sourcePinButton = container.querySelector(".node-card .pin-row-output .pin-dot") as HTMLButtonElement | null;
+    expect(sourcePinButton).toBeTruthy();
+
+    fireEvent.mouseDown(sourcePinButton!, { button: 0, clientX: 200, clientY: 160 });
+    fireEvent.mouseMove(window, { clientX: 360, clientY: 220 });
+    fireEvent.mouseUp(canvas!, { button: 0, clientX: 360, clientY: 220 });
+
+    const picker = await waitFor(() => {
+      const value = container.querySelector(".node-picker") as HTMLElement | null;
+      expect(value).toBeTruthy();
+      return value!;
+    });
+
+    await user.click(within(picker).getByRole("option", { name: /Default Node/i }));
+
+    await waitFor(() => {
+      expect(container.querySelector(".node-picker")).toBeNull();
+    });
+
+    const stateAfter = useGraphStore.getState();
+    expect(stateAfter.edgeOrder.length).toBeGreaterThan(0);
+    const newestEdge = stateAfter.edges[stateAfter.edgeOrder[stateAfter.edgeOrder.length - 1]];
+    const targetPin = stateAfter.pins[newestEdge.toPinId];
+    expect(targetPin.shape).toBe("diamond");
+    expect(targetPin.color).toBe("red");
   });
 });
