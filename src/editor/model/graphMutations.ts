@@ -19,6 +19,8 @@ import {
   PIN_TOP_PADDING
 } from "./types";
 import { layoutTokens } from "../theme/layoutTokens";
+import type { ProtoGraphClipboardPayloadV1 } from "./clipboard";
+import { isProtoGraphClipboardPayloadV1 } from "./clipboard";
 
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 2.5;
@@ -38,6 +40,7 @@ export type SelectionMode = "replace" | "add";
 export type AlignKind = "left" | "center-x" | "right" | "top" | "center-y" | "bottom";
 export type DistributeAxis = "horizontal" | "vertical";
 export type WorldRect = { x: number; y: number; width: number; height: number };
+export type WorldPoint = { x: number; y: number };
 
 export function makeGraph(): GraphModel {
   return {
@@ -247,6 +250,201 @@ export function duplicateSelectedNodes(graph: GraphModel): GraphModel {
     draft.selectedNodeIds = nextSelection;
     draft.selectedEdgeIds = [];
   });
+}
+
+export function buildClipboardPayloadFromSelection(
+  graph: GraphModel
+): ProtoGraphClipboardPayloadV1 | null {
+  if (graph.selectedNodeIds.length === 0) {
+    return null;
+  }
+
+  const selectedNodeIds = graph.order.filter((nodeId) => graph.selectedNodeIds.includes(nodeId));
+  if (selectedNodeIds.length === 0) {
+    return null;
+  }
+
+  const selectedNodeSet = new Set(selectedNodeIds);
+  const nodes: Record<string, NodeModel> = {};
+  const pins: Record<string, PinModel> = {};
+  const pinIds = new Set<string>();
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const nodeId of selectedNodeIds) {
+    const node = graph.nodes[nodeId];
+    if (!node) {
+      continue;
+    }
+    nodes[nodeId] = { ...node };
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + node.width);
+    maxY = Math.max(maxY, node.y + node.height);
+
+    for (const pinId of [...node.inputPinIds, ...node.outputPinIds]) {
+      const pin = graph.pins[pinId];
+      if (!pin) {
+        continue;
+      }
+      pins[pinId] = { ...pin };
+      pinIds.add(pinId);
+    }
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+    return null;
+  }
+
+  const edges: Record<string, EdgeModel> = {};
+  const edgeOrder = graph.edgeOrder.filter((edgeId) => {
+    const edge = graph.edges[edgeId];
+    if (!edge) {
+      return false;
+    }
+    const fromPin = graph.pins[edge.fromPinId];
+    const toPin = graph.pins[edge.toPinId];
+    if (!fromPin || !toPin) {
+      return false;
+    }
+    if (!selectedNodeSet.has(fromPin.nodeId) || !selectedNodeSet.has(toPin.nodeId)) {
+      return false;
+    }
+    if (!pinIds.has(edge.fromPinId) || !pinIds.has(edge.toPinId)) {
+      return false;
+    }
+    edges[edgeId] = { ...edge };
+    return true;
+  });
+
+  return {
+    selectionBounds: {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      centerX: (minX + maxX) * 0.5,
+      centerY: (minY + maxY) * 0.5
+    },
+    graph: {
+      nodes,
+      pins,
+      edges,
+      order: selectedNodeIds,
+      edgeOrder
+    }
+  };
+}
+
+export function pasteClipboardPayload(
+  graph: GraphModel,
+  payload: ProtoGraphClipboardPayloadV1,
+  anchor?: WorldPoint | null
+): { graph: GraphModel; pastedNodeIds: string[] } {
+  if (!isProtoGraphClipboardPayloadV1(payload)) {
+    return { graph, pastedNodeIds: [] };
+  }
+
+  const sourceNodeIds = payload.graph.order.filter((nodeId) => Boolean(payload.graph.nodes[nodeId]));
+  if (sourceNodeIds.length === 0) {
+    return { graph, pastedNodeIds: [] };
+  }
+
+  const sourceCenterX = payload.selectionBounds.centerX;
+  const sourceCenterY = payload.selectionBounds.centerY;
+  const dx = anchor ? anchor.x - sourceCenterX : 0;
+  const dy = anchor ? anchor.y - sourceCenterY : 0;
+
+  let pastedNodeIds: string[] = [];
+  const next = produce(graph, (draft) => {
+    const nodeIdMap = new Map<string, string>();
+    const pinIdMap = new Map<string, string>();
+    const nextPastedNodeIds: string[] = [];
+
+    for (const sourceNodeId of sourceNodeIds) {
+      const sourceNode = payload.graph.nodes[sourceNodeId];
+      if (!sourceNode) {
+        continue;
+      }
+      const pastedNodeId = `node_${nodeSequence++}`;
+      nodeIdMap.set(sourceNodeId, pastedNodeId);
+      nextPastedNodeIds.push(pastedNodeId);
+
+      for (const sourcePinId of [...sourceNode.inputPinIds, ...sourceNode.outputPinIds]) {
+        if (!payload.graph.pins[sourcePinId]) {
+          continue;
+        }
+        pinIdMap.set(sourcePinId, `pin_${pinSequence++}`);
+      }
+    }
+
+    for (const sourceNodeId of sourceNodeIds) {
+      const sourceNode = payload.graph.nodes[sourceNodeId];
+      const pastedNodeId = nodeIdMap.get(sourceNodeId);
+      if (!sourceNode || !pastedNodeId) {
+        continue;
+      }
+      const inputPinIds = sourceNode.inputPinIds
+        .map((sourcePinId) => pinIdMap.get(sourcePinId))
+        .filter((id): id is string => Boolean(id));
+      const outputPinIds = sourceNode.outputPinIds
+        .map((sourcePinId) => pinIdMap.get(sourcePinId))
+        .filter((id): id is string => Boolean(id));
+
+      const pastedNode: NodeModel = {
+        ...sourceNode,
+        id: pastedNodeId,
+        x: sourceNode.x + dx,
+        y: sourceNode.y + dy,
+        inputPinIds,
+        outputPinIds
+      };
+      pastedNode.height = computeNodeHeight(pastedNode);
+      draft.nodes[pastedNodeId] = pastedNode;
+      draft.order.push(pastedNodeId);
+    }
+
+    for (const [sourcePinId, pastedPinId] of pinIdMap.entries()) {
+      const sourcePin = payload.graph.pins[sourcePinId];
+      const pastedNodeId = sourcePin ? nodeIdMap.get(sourcePin.nodeId) : undefined;
+      if (!sourcePin || !pastedNodeId) {
+        continue;
+      }
+      draft.pins[pastedPinId] = {
+        ...sourcePin,
+        id: pastedPinId,
+        nodeId: pastedNodeId
+      };
+    }
+
+    for (const sourceEdgeId of payload.graph.edgeOrder) {
+      const sourceEdge = payload.graph.edges[sourceEdgeId];
+      if (!sourceEdge) {
+        continue;
+      }
+      const fromPinId = pinIdMap.get(sourceEdge.fromPinId);
+      const toPinId = pinIdMap.get(sourceEdge.toPinId);
+      if (!fromPinId || !toPinId) {
+        continue;
+      }
+      const pastedEdgeId = `edge_${edgeSequence++}`;
+      draft.edges[pastedEdgeId] = {
+        ...sourceEdge,
+        id: pastedEdgeId,
+        fromPinId,
+        toPinId
+      };
+      draft.edgeOrder.push(pastedEdgeId);
+    }
+
+    draft.selectedNodeIds = nextPastedNodeIds;
+    draft.selectedEdgeIds = [];
+    pastedNodeIds = nextPastedNodeIds;
+  });
+  return { graph: next, pastedNodeIds };
 }
 
 export function moveSelectedNodesBy(graph: GraphModel, dx: number, dy: number): GraphModel {

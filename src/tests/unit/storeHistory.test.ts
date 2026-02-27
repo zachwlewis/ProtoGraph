@@ -1,4 +1,4 @@
-import { makeGraph } from "../../editor/model/graphMutations";
+import { buildClipboardPayloadFromSelection, makeGraph } from "../../editor/model/graphMutations";
 import type { GraphModel } from "../../editor/model/types";
 import { useGraphStore } from "../../editor/store/useGraphStore";
 
@@ -76,6 +76,29 @@ describe("store history", () => {
 
     store.redo();
     expect(useGraphStore.getState().edgeOrder).toHaveLength(1);
+  });
+
+  it("treats clipboard paste as a single undoable content edit", () => {
+    const store = useGraphStore.getState();
+    const sourceId = store.addNodeAt(60, 80, "Source");
+    store.setSelection([sourceId]);
+    const payload = buildClipboardPayloadFromSelection(graphFromState(useGraphStore.getState()));
+    expect(payload).toBeTruthy();
+    if (!payload) {
+      throw new Error("Expected payload");
+    }
+
+    const beforeCount = useGraphStore.getState().order.length;
+    const pasted = store.pasteClipboardPayload(payload, { x: 600, y: 400 });
+    expect(pasted.pastedNodeIds).toHaveLength(1);
+    expect(useGraphStore.getState().order.length).toBe(beforeCount + 1);
+    expect(useGraphStore.getState().canUndo).toBe(true);
+
+    store.undo();
+    expect(useGraphStore.getState().order.length).toBe(beforeCount);
+
+    store.redo();
+    expect(useGraphStore.getState().order.length).toBe(beforeCount + 1);
   });
 
   it("does not track non-content operations in history", () => {

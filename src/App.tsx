@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 import { InfiniteCanvas } from "./editor/canvas/InfiniteCanvas";
-import { DEFAULT_NODE_PICKER_PRESET_ID, NodePicker } from "./editor/components/NodePicker";
-import { makeGraph, replaceGraphState } from "./editor/model/graphMutations";
+import {
+  CHECK_CLIPBOARD_PRESET_ID,
+  DEFAULT_NODE_PICKER_PRESET_ID,
+  NodePicker,
+  PASTE_FROM_CLIPBOARD_PRESET_ID
+} from "./editor/components/NodePicker";
+import {
+  parseClipboardText,
+  serializeClipboardPayload
+} from "./editor/model/clipboard";
+import type { ProtoGraphClipboardPayloadV1 } from "./editor/model/clipboard";
+import { buildClipboardPayloadFromSelection, makeGraph, replaceGraphState } from "./editor/model/graphMutations";
 import type {
   GraphLibrary,
   GraphModel,
@@ -56,6 +66,7 @@ export function App() {
   const exportMenuRef = useRef<HTMLDetailsElement | null>(null);
   const lastSelectedNodeRef = useRef<GraphModel["nodes"][string] | null>(null);
   const pinDragTransactionOpenRef = useRef(false);
+  const lastCanvasPointerWorldRef = useRef<{ x: number; y: number } | null>(null);
   const [library, setLibrary] = useState<GraphLibrary | null>(null);
   const [view, setView] = useState<"home" | "editor">("editor");
   const [notice, setNotice] = useState<NoticeState | null>(null);
@@ -80,6 +91,8 @@ export function App() {
     screenY: 0,
     connectFromPinId: undefined
   });
+  const [nodePickerPastePayload, setNodePickerPastePayload] = useState<ProtoGraphClipboardPayloadV1 | null>(null);
+  const [cachedClipboardPayload, setCachedClipboardPayload] = useState<ProtoGraphClipboardPayloadV1 | null>(null);
 
   const addPin = useGraphStore((state) => state.addPin);
   const addNodeAt = useGraphStore((state) => state.addNodeAt);
@@ -96,6 +109,7 @@ export function App() {
   const reorderPin = useGraphStore((state) => state.reorderPin);
   const deleteSelection = useGraphStore((state) => state.deleteSelection);
   const duplicateSelection = useGraphStore((state) => state.duplicateSelection);
+  const pasteSelectionFromClipboardPayload = useGraphStore((state) => state.pasteClipboardPayload);
   const alignSelection = useGraphStore((state) => state.alignSelection);
   const distributeSelection = useGraphStore((state) => state.distributeSelection);
   const undo = useGraphStore((state) => state.undo);
@@ -113,6 +127,7 @@ export function App() {
   const pins = useGraphStore((state) => state.pins);
   const edges = useGraphStore((state) => state.edges);
   const selectedNodeIds = useGraphStore((state) => state.selectedNodeIds);
+  const selectedEdgeIds = useGraphStore((state) => state.selectedEdgeIds);
   const singleInputPolicy = useGraphStore((state) => state.singleInputPolicy);
   const setSingleInputPolicy = useGraphStore((state) => state.setSingleInputPolicy);
   const allowSameNodeConnections = useGraphStore((state) => state.allowSameNodeConnections);
@@ -160,6 +175,201 @@ export function App() {
   );
   const appThemeStyle = useMemo(() => activeTheme.cssVars as CSSProperties, [activeTheme]);
   const pushNotice = (text: string, intent: NoticeIntent = "info") => setNotice({ text, intent });
+
+  const onCanvasPointerWorldChange = (worldX: number, worldY: number) => {
+    lastCanvasPointerWorldRef.current = { x: worldX, y: worldY };
+  };
+
+  const canProbeClipboardForPicker = async (): Promise<boolean> => {
+    if (!navigator.clipboard?.readText) {
+      return false;
+    }
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isSafari = userAgent.includes("safari") && !userAgent.includes("chrome") && !userAgent.includes("chromium");
+    if (isSafari) {
+      return false;
+    }
+    const permissions = (navigator as Navigator & {
+      permissions?: { query: (descriptor: { name: string }) => Promise<{ state: string }> };
+    }).permissions;
+    if (!permissions?.query) {
+      return false;
+    }
+    try {
+      const status = await permissions.query({ name: "clipboard-read" });
+      return status.state === "granted";
+    } catch {
+      return false;
+    }
+  };
+
+  const readClipboardPayloadForPicker = async (
+    manual: boolean
+  ): Promise<
+    | { kind: "ok"; payload: ProtoGraphClipboardPayloadV1 }
+    | { kind: "skipped" }
+    | { kind: "blocked" }
+    | { kind: "invalid" }
+    | { kind: "unavailable" }
+  > => {
+    if (!navigator.clipboard?.readText) {
+      return { kind: "unavailable" };
+    }
+    if (!manual) {
+      const canProbe = await canProbeClipboardForPicker();
+      if (!canProbe) {
+        return { kind: "skipped" };
+      }
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      const parsed = parseClipboardText(text);
+      return parsed.ok ? { kind: "ok", payload: parsed.payload } : { kind: "invalid" };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        return { kind: "blocked" };
+      }
+      return { kind: "blocked" };
+    }
+  };
+
+  const getViewportCenterWorld = () => {
+    const canvas = document.querySelector(".canvas-root");
+    if (!(canvas instanceof HTMLElement)) {
+      return { x: -viewport.x / viewport.zoom, y: -viewport.y / viewport.zoom };
+    }
+    const rect = canvas.getBoundingClientRect();
+    const localX = rect.width * 0.5;
+    const localY = rect.height * 0.5;
+    return {
+      x: (localX - viewport.x) / viewport.zoom,
+      y: (localY - viewport.y) / viewport.zoom
+    };
+  };
+
+  const onCopySelection = async () => {
+    if (!activeSavedGraph) {
+      return;
+    }
+    if (selectedNodeIds.length === 0) {
+      pushNotice("Select at least one node to copy", "error");
+      return;
+    }
+
+    const payload = buildClipboardPayloadFromSelection({
+      nodes,
+      pins,
+      edges,
+      order,
+      edgeOrder,
+      selectedNodeIds,
+      selectedEdgeIds,
+      viewport,
+      singleInputPolicy,
+      allowSameNodeConnections,
+      blendWireColors
+    });
+    if (!payload) {
+      pushNotice("Select at least one node to copy", "error");
+      return;
+    }
+
+    if (!navigator.clipboard?.writeText) {
+      pushNotice("Clipboard write is not available", "error");
+      return;
+    }
+
+    try {
+      const text = serializeClipboardPayload(payload, activeSavedGraph.id);
+      await navigator.clipboard.writeText(text);
+      setCachedClipboardPayload(payload);
+      pushNotice("Copied selection to clipboard", "success");
+    } catch {
+      pushNotice("Unable to write to clipboard", "error");
+    }
+  };
+
+  const onCutSelection = async () => {
+    if (!activeSavedGraph) {
+      return;
+    }
+    if (selectedNodeIds.length === 0) {
+      pushNotice("Select at least one node to copy", "error");
+      return;
+    }
+
+    const payload = buildClipboardPayloadFromSelection({
+      nodes,
+      pins,
+      edges,
+      order,
+      edgeOrder,
+      selectedNodeIds,
+      selectedEdgeIds,
+      viewport,
+      singleInputPolicy,
+      allowSameNodeConnections,
+      blendWireColors
+    });
+    if (!payload) {
+      pushNotice("Select at least one node to copy", "error");
+      return;
+    }
+
+    if (!navigator.clipboard?.writeText) {
+      pushNotice("Clipboard write is not available", "error");
+      return;
+    }
+
+    try {
+      const text = serializeClipboardPayload(payload, activeSavedGraph.id);
+      await navigator.clipboard.writeText(text);
+      setCachedClipboardPayload(payload);
+      deleteSelection();
+      pushNotice("Cut selection to clipboard", "success");
+    } catch {
+      pushNotice("Unable to write to clipboard", "error");
+    }
+  };
+
+  const pasteFromClipboardText = (text: string, anchor?: { x: number; y: number } | null): boolean => {
+    const parsed = parseClipboardText(text);
+    if (!parsed.ok) {
+      return false;
+    }
+
+    const pasteAnchor = anchor ?? lastCanvasPointerWorldRef.current ?? getViewportCenterWorld();
+    const result = pasteSelectionFromClipboardPayload(parsed.payload, pasteAnchor);
+    if (result.pastedNodeIds.length === 0) {
+      return false;
+    }
+    pushNotice(
+      result.pastedNodeIds.length === 1
+        ? "Pasted 1 node from clipboard"
+        : `Pasted ${result.pastedNodeIds.length} nodes from clipboard`,
+      "success"
+    );
+    return true;
+  };
+
+  const onPasteClipboard = async (anchor?: { x: number; y: number } | null) => {
+    if (!activeSavedGraph) {
+      return;
+    }
+    if (!navigator.clipboard?.readText) {
+      pushNotice("Clipboard read is not available", "error");
+      return;
+    }
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!pasteFromClipboardText(text, anchor)) {
+        pushNotice("Clipboard does not contain ProtoGraph data", "error");
+      }
+    } catch {
+      pushNotice("Unable to read clipboard", "error");
+    }
+  };
 
   useEffect(() => {
     const previousSelectedNode = lastSelectedNodeRef.current;
@@ -374,6 +584,17 @@ export function App() {
         return;
       }
 
+      if (hasModifier && key === "c" && !event.shiftKey) {
+        event.preventDefault();
+        void onCopySelection();
+        return;
+      }
+      if (hasModifier && key === "x" && !event.shiftKey) {
+        event.preventDefault();
+        void onCutSelection();
+        return;
+      }
+
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         deleteSelection();
@@ -388,7 +609,37 @@ export function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeSavedGraph, deleteSelection, duplicateSelection, redo, undo, view]);
+  }, [activeSavedGraph, deleteSelection, duplicateSelection, onCopySelection, onCutSelection, redo, undo, view]);
+
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (view !== "editor" || !activeSavedGraph) {
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      const text = event.clipboardData?.getData("text/plain") ?? "";
+      if (text) {
+        if (!pasteFromClipboardText(text)) {
+          pushNotice("Clipboard does not contain ProtoGraph data", "error");
+        }
+        return;
+      }
+      void onPasteClipboard();
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [activeSavedGraph, onPasteClipboard, pasteFromClipboardText, view]);
 
   useEffect(() => {
     if (!notice) {
@@ -985,6 +1236,7 @@ export function App() {
     screenY: number;
     connectFromPinId?: string;
   }) => {
+    setNodePickerPastePayload(cachedClipboardPayload);
     setNodePicker({
       open: true,
       worldX: request.worldX,
@@ -993,10 +1245,25 @@ export function App() {
       screenY: request.screenY,
       connectFromPinId: request.connectFromPinId
     });
+    if (request.connectFromPinId) {
+      return;
+    }
+    void readClipboardPayloadForPicker(false)
+      .then((result) => {
+        if (result.kind !== "ok") {
+          return;
+        }
+        setNodePickerPastePayload(result.payload);
+        setCachedClipboardPayload(result.payload);
+      })
+      .catch(() => {
+        // Ignore clipboard read errors for passive picker affordance.
+      });
   };
 
   const closeNodePicker = () => {
     setNodePicker((prev) => ({ ...prev, open: false }));
+    setNodePickerPastePayload(null);
     window.requestAnimationFrame(() => {
       const canvas = document.querySelector(".canvas-root");
       if (canvas instanceof HTMLElement) {
@@ -1006,6 +1273,34 @@ export function App() {
   };
 
   const onPickerSelectPreset = (presetId: string) => {
+    if (presetId === CHECK_CLIPBOARD_PRESET_ID) {
+      void readClipboardPayloadForPicker(true).then((result) => {
+        if (result.kind === "ok") {
+          setNodePickerPastePayload(result.payload);
+          setCachedClipboardPayload(result.payload);
+          pushNotice("Clipboard data detected. Choose Paste from Clipboard.", "success");
+          return;
+        }
+        if (result.kind === "blocked") {
+          pushNotice("Clipboard access is blocked. Allow clipboard for this site, then try again.", "error");
+          return;
+        }
+        if (result.kind === "unavailable") {
+          pushNotice("Clipboard read is not available in this browser", "error");
+          return;
+        }
+        if (result.kind === "invalid") {
+          pushNotice("Clipboard does not contain ProtoGraph data", "error");
+        }
+      });
+      return;
+    }
+
+    if (presetId === PASTE_FROM_CLIPBOARD_PRESET_ID) {
+      onPickerPasteFromClipboard();
+      return;
+    }
+
     beginHistoryTransaction();
     try {
       const stateBeforeCreate = useGraphStore.getState();
@@ -1044,6 +1339,28 @@ export function App() {
     } finally {
       endHistoryTransaction();
     }
+  };
+
+  const onPickerPasteFromClipboard = () => {
+    if (!nodePickerPastePayload) {
+      pushNotice("Clipboard does not contain ProtoGraph data", "error");
+      return;
+    }
+    const pasted = pasteSelectionFromClipboardPayload(nodePickerPastePayload, {
+      x: nodePicker.worldX,
+      y: nodePicker.worldY
+    });
+    if (pasted.pastedNodeIds.length === 0) {
+      pushNotice("Clipboard does not contain ProtoGraph data", "error");
+      return;
+    }
+    pushNotice(
+      pasted.pastedNodeIds.length === 1
+        ? "Pasted 1 node from clipboard"
+        : `Pasted ${pasted.pastedNodeIds.length} nodes from clipboard`,
+      "success"
+    );
+    closeNodePicker();
   };
 
   const layoutActions = [
@@ -1144,6 +1461,36 @@ export function App() {
                 disabled={!canRedo || !showEditor}
               >
                 <span className="material-symbols-outlined">redo</span>
+              </button>
+
+              <button
+                className="icon-button"
+                title="Cut selection (Cmd/Ctrl+X)"
+                aria-label="Cut selection"
+                onClick={() => void onCutSelection()}
+                disabled={!showEditor || selectedNodeIds.length === 0}
+              >
+                <span className="material-symbols-outlined">content_cut</span>
+              </button>
+
+              <button
+                className="icon-button"
+                title="Copy selection (Cmd/Ctrl+C)"
+                aria-label="Copy selection"
+                onClick={() => void onCopySelection()}
+                disabled={!showEditor || selectedNodeIds.length === 0}
+              >
+                <span className="material-symbols-outlined">content_copy</span>
+              </button>
+
+              <button
+                className="icon-button"
+                title="Paste from clipboard (Cmd/Ctrl+V)"
+                aria-label="Paste from clipboard"
+                onClick={() => void onPasteClipboard()}
+                disabled={!showEditor}
+              >
+                <span className="material-symbols-outlined">content_paste</span>
               </button>
 
               <details className={`toolbar-dropdown ${!activeSavedGraph ? "is-disabled" : ""}`} ref={exportMenuRef}>
@@ -1249,6 +1596,7 @@ export function App() {
               resolvedNavigationMode={library.settings.resolvedNavigationMode}
               onResolveNavigationMode={onResolveNavigationMode}
               onConnectError={(message) => pushNotice(message, "error")}
+              onCanvasPointerWorldChange={onCanvasPointerWorldChange}
               onRequestNodePicker={openNodePickerAt}
             />
             <NodePicker
@@ -1257,6 +1605,9 @@ export function App() {
               anchorScreenY={nodePicker.screenY}
               packs={nodePacks}
               onSelect={onPickerSelectPreset}
+              canPasteFromClipboard={Boolean(nodePickerPastePayload)}
+              canRequestClipboardPaste={!nodePicker.connectFromPinId && !nodePickerPastePayload && !cachedClipboardPayload}
+              autoFocusSearch={Boolean(nodePicker.connectFromPinId)}
               onClose={closeNodePicker}
             />
             {showLayoutCard || showNodeInspector ? (
@@ -1700,6 +2051,9 @@ export function App() {
               <ul>
                 <li><kbd>Cmd/Ctrl + Z</kbd>: undo.</li>
                 <li><kbd>Shift + Cmd/Ctrl + Z</kbd> or <kbd>Ctrl + Y</kbd>: redo.</li>
+                <li><kbd>Cmd/Ctrl + X</kbd>: cut selected node(s).</li>
+                <li><kbd>Cmd/Ctrl + C</kbd>: copy selected node(s).</li>
+                <li><kbd>Cmd/Ctrl + V</kbd>: paste from clipboard.</li>
                 <li><kbd>Delete</kbd>/<kbd>Backspace</kbd>: delete current selection.</li>
                 <li><kbd>Cmd/Ctrl + D</kbd>: duplicate selected node(s).</li>
                 <li><kbd>Enter</kbd>: commit active input edit.</li>

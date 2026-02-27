@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { NodePack, NodePreset } from "../presets/types";
 
 export const DEFAULT_NODE_PICKER_PRESET_ID = "__default_node__";
+export const PASTE_FROM_CLIPBOARD_PRESET_ID = "__paste_from_clipboard__";
+export const CHECK_CLIPBOARD_PRESET_ID = "__check_clipboard_paste__";
 
 type NodePickerProps = {
   open: boolean;
@@ -9,6 +11,9 @@ type NodePickerProps = {
   anchorScreenY: number;
   packs: NodePack[];
   onSelect: (presetId: string) => void;
+  canPasteFromClipboard?: boolean;
+  canRequestClipboardPaste?: boolean;
+  autoFocusSearch?: boolean;
   onClose: () => void;
 };
 
@@ -33,6 +38,9 @@ export function NodePicker({
   anchorScreenY,
   packs,
   onSelect,
+  canPasteFromClipboard = false,
+  canRequestClipboardPaste = false,
+  autoFocusSearch = true,
   onClose
 }: NodePickerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -41,22 +49,46 @@ export function NodePicker({
   const [activeIndex, setActiveIndex] = useState(0);
 
   const options = useMemo(() => flattenOptions(packs), [packs]);
+  const optionsWithPaste = useMemo(() => {
+    if (!canPasteFromClipboard) {
+      if (canRequestClipboardPaste) {
+        return [buildCheckClipboardOption(), ...options];
+      }
+      return options;
+    }
+    return [buildPasteOption(), ...options];
+  }, [canPasteFromClipboard, canRequestClipboardPaste, options]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const defaultOption = options.find((option) => option.presetId === DEFAULT_NODE_PICKER_PRESET_ID);
+    const defaultOption = optionsWithPaste.find((option) => option.presetId === DEFAULT_NODE_PICKER_PRESET_ID);
+    const checkClipboardOption = optionsWithPaste.find((option) => option.presetId === CHECK_CLIPBOARD_PRESET_ID);
+    const pasteOption = optionsWithPaste.find((option) => option.presetId === PASTE_FROM_CLIPBOARD_PRESET_ID);
     if (!q) {
-      return options;
+      return optionsWithPaste;
     }
-    const matches = options.filter((option) => {
-      if (option.presetId === DEFAULT_NODE_PICKER_PRESET_ID) {
+    const matches = optionsWithPaste.filter((option) => {
+      if (
+        option.presetId === DEFAULT_NODE_PICKER_PRESET_ID ||
+        option.presetId === PASTE_FROM_CLIPBOARD_PRESET_ID ||
+        option.presetId === CHECK_CLIPBOARD_PRESET_ID
+      ) {
         return false;
       }
       const haystack = `${option.title} ${option.packLabel} ${option.category} ${option.tags.join(" ")}`.toLowerCase();
       return haystack.includes(q);
     });
-    return defaultOption ? [defaultOption, ...matches] : matches;
-  }, [options, query]);
+    const quick: PickerOption[] = [];
+    if (pasteOption) {
+      quick.push(pasteOption);
+    } else if (checkClipboardOption) {
+      quick.push(checkClipboardOption);
+    }
+    if (defaultOption) {
+      quick.push(defaultOption);
+    }
+    return [...quick, ...matches];
+  }, [optionsWithPaste, query]);
 
   const groups = useMemo(() => {
     const grouped = new Map<string, PickerGroup>();
@@ -82,8 +114,10 @@ export function NodePicker({
     }
     setQuery("");
     setActiveIndex(0);
-    inputRef.current?.focus();
-  }, [open]);
+    if (autoFocusSearch) {
+      inputRef.current?.focus();
+    }
+  }, [autoFocusSearch, open]);
 
   useEffect(() => {
     if (!open) {
@@ -220,5 +254,27 @@ function toOption(packId: string, packLabel: string, preset: NodePreset): Picker
     packId,
     packLabel,
     tags: preset.tags ?? []
+  };
+}
+
+function buildPasteOption(): PickerOption {
+  return {
+    presetId: PASTE_FROM_CLIPBOARD_PRESET_ID,
+    title: "Paste from Clipboard",
+    category: "Quick Create",
+    packId: "__default__",
+    packLabel: "Canvas",
+    tags: ["paste", "clipboard", "quick", "create"]
+  };
+}
+
+function buildCheckClipboardOption(): PickerOption {
+  return {
+    presetId: CHECK_CLIPBOARD_PRESET_ID,
+    title: "Check Clipboard for Paste",
+    category: "Quick Create",
+    packId: "__default__",
+    packLabel: "Canvas",
+    tags: ["paste", "clipboard", "quick", "create", "check"]
   };
 }

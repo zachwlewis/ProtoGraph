@@ -1,7 +1,13 @@
 import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../App";
-import { createNode, makeGraph } from "../../editor/model/graphMutations";
+import {
+  buildClipboardPayloadFromSelection,
+  createNode,
+  makeGraph,
+  setSelectedNodes
+} from "../../editor/model/graphMutations";
+import { serializeClipboardPayload } from "../../editor/model/clipboard";
 import { DEFAULT_EXPORT_PREFS } from "../../editor/model/types";
 import { useGraphStore } from "../../editor/store/useGraphStore";
 
@@ -221,4 +227,95 @@ describe("Node picker", () => {
     expect(targetPin.shape).toBe("diamond");
     expect(targetPin.color).toBe("red");
   });
+
+  it("shows node picker paste action when clipboard has ProtoGraph payload and pastes at picker anchor", async () => {
+    const [withNode, nodeId] = createNode(makeGraph(), { x: 10, y: 20, title: "Clipboard Node" });
+    const payload = buildPayloadFromGraph(setSelectedNodes(withNode, [nodeId]));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        readText: vi.fn(async () => serializeClipboardPayload(payload, "graph_seed"))
+      }
+    });
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async () => ({ state: "granted" }))
+      }
+    });
+
+    const { container } = render(<App />);
+    const canvas = container.querySelector(".canvas-root") as HTMLDivElement | null;
+    expect(canvas).toBeTruthy();
+    const beforeCount = useGraphStore.getState().order.length;
+
+    fireEvent.mouseDown(canvas!, { button: 2, clientX: 420, clientY: 260 });
+    fireEvent.mouseUp(window, { button: 2, clientX: 420, clientY: 260 });
+
+    const picker = await waitFor(() => {
+      const value = container.querySelector(".node-picker") as HTMLElement | null;
+      expect(value).toBeTruthy();
+      return value!;
+    });
+
+    const quickCreateHeader = within(picker).getByText("Canvas / Quick Create");
+    const quickCreateSection = quickCreateHeader.closest("section");
+    expect(quickCreateSection).toBeTruthy();
+    const quickOptions = within(quickCreateSection as HTMLElement).getAllByRole("option");
+    expect(quickOptions[0].textContent).toContain("Paste from Clipboard");
+    expect(quickOptions[1].textContent).toContain("Default Node");
+
+    const pasteBtn = within(quickCreateSection as HTMLElement).getByRole("option", {
+      name: /Paste from Clipboard/i
+    });
+    await userEvent.setup().click(pasteBtn);
+
+    await waitFor(() => {
+      expect(useGraphStore.getState().order.length).toBe(beforeCount + 1);
+    });
+  });
+
+  it("does not show paste option when picker opens from drag-connect", async () => {
+    const [withNode, nodeId] = createNode(makeGraph(), { x: 10, y: 20, title: "Clipboard Node" });
+    const payload = buildPayloadFromGraph(setSelectedNodes(withNode, [nodeId]));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        readText: vi.fn(async () => serializeClipboardPayload(payload, "graph_seed"))
+      }
+    });
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async () => ({ state: "granted" }))
+      }
+    });
+
+    const { container } = render(<App />);
+    const canvas = container.querySelector(".canvas-root") as HTMLDivElement | null;
+    expect(canvas).toBeTruthy();
+
+    const sourcePinButton = container.querySelector(".node-card .pin-row-output .pin-dot") as HTMLButtonElement | null;
+    expect(sourcePinButton).toBeTruthy();
+
+    fireEvent.mouseDown(sourcePinButton!, { button: 0, clientX: 200, clientY: 160 });
+    fireEvent.mouseMove(window, { clientX: 360, clientY: 220 });
+    fireEvent.mouseUp(canvas!, { button: 0, clientX: 360, clientY: 220 });
+
+    const picker = await waitFor(() => {
+      const value = container.querySelector(".node-picker") as HTMLElement | null;
+      expect(value).toBeTruthy();
+      return value!;
+    });
+
+    expect(within(picker).queryByRole("option", { name: /Paste from Clipboard/i })).toBeNull();
+  });
 });
+
+function buildPayloadFromGraph(graph: ReturnType<typeof setSelectedNodes>) {
+  const payload = buildClipboardPayloadFromSelection(graph);
+  if (!payload) {
+    throw new Error("Expected clipboard payload");
+  }
+  return payload;
+}

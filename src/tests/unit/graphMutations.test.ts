@@ -1,5 +1,6 @@
 import {
   alignSelection,
+  buildClipboardPayloadFromSelection,
   addPinToNode,
   connectPins,
   createNode,
@@ -9,6 +10,7 @@ import {
   duplicateSelectedNodes,
   getPinCenter,
   makeGraph,
+  pasteClipboardPayload,
   renameNode,
   renamePin,
   replaceGraphState,
@@ -141,6 +143,82 @@ describe("graphMutations", () => {
     expect(duplicate?.x).toBe(80);
     expect(duplicate?.y).toBe(90);
     expect(next.selectedNodeIds).toEqual([duplicate?.id]);
+  });
+
+  it("builds clipboard payload from selected nodes with only internal edges", () => {
+    const base = makeGraph();
+    const [withA, a] = createNode(base, { x: 0, y: 0, title: "A" });
+    const [withB, b] = createNode(withA, { x: 300, y: 0, title: "B" });
+    const [withC, c] = createNode(withB, { x: 600, y: 0, title: "C" });
+    const ab = connectPins(withC, withC.nodes[a].outputPinIds[0], withC.nodes[b].inputPinIds[0]);
+    expect(ab.success).toBe(true);
+    const abc = connectPins(ab.graph, ab.graph.nodes[b].outputPinIds[0], ab.graph.nodes[c].inputPinIds[0]);
+    expect(abc.success).toBe(true);
+
+    const selected = setSelectedNodes(abc.graph, [a, b]);
+    const payload = buildClipboardPayloadFromSelection(selected);
+
+    expect(payload).toBeTruthy();
+    expect(payload?.graph.order).toEqual([a, b]);
+    expect(Object.keys(payload?.graph.nodes ?? {})).toHaveLength(2);
+    expect(payload?.graph.edgeOrder).toHaveLength(1);
+    expect(payload?.selectionBounds.minX).toBe(0);
+    expect(payload?.selectionBounds.maxX).toBe(560);
+    expect(payload?.selectionBounds.centerX).toBe(280);
+  });
+
+  it("returns null clipboard payload for edge-only selection", () => {
+    const base = makeGraph();
+    const [withA, a] = createNode(base, { x: 0, y: 0 });
+    const [withB, b] = createNode(withA, { x: 300, y: 0 });
+    const connected = connectPins(withB, withB.nodes[a].outputPinIds[0], withB.nodes[b].inputPinIds[0]);
+    expect(connected.success).toBe(true);
+
+    const edgeSelected = setSelectedEdges(connected.graph, [connected.edgeId!]);
+    const payload = buildClipboardPayloadFromSelection(edgeSelected);
+    expect(payload).toBeNull();
+  });
+
+  it("pastes clipboard payload with remapped ids, anchored translation, and selected pasted nodes", () => {
+    const base = makeGraph();
+    const [withA, a] = createNode(base, { x: 0, y: 0, title: "A" });
+    const [withB, b] = createNode(withA, { x: 300, y: 0, title: "B" });
+    const connected = connectPins(withB, withB.nodes[a].outputPinIds[0], withB.nodes[b].inputPinIds[0]);
+    expect(connected.success).toBe(true);
+
+    const selected = setSelectedNodes(connected.graph, [a, b]);
+    const payload = buildClipboardPayloadFromSelection(selected);
+    expect(payload).toBeTruthy();
+    if (!payload) {
+      throw new Error("Expected clipboard payload");
+    }
+
+    const pasted = pasteClipboardPayload(selected, payload, { x: 1000, y: 800 });
+    expect(pasted.pastedNodeIds).toHaveLength(2);
+    expect(pasted.graph.selectedNodeIds).toEqual(pasted.pastedNodeIds);
+    expect(pasted.graph.selectedEdgeIds).toEqual([]);
+
+    for (const pastedNodeId of pasted.pastedNodeIds) {
+      expect(pasted.graph.nodes[pastedNodeId]).toBeDefined();
+      expect(payload.graph.nodes[pastedNodeId]).toBeUndefined();
+    }
+
+    const pastedNodes = pasted.pastedNodeIds
+      .map((id) => pasted.graph.nodes[id])
+      .filter(Boolean) as Array<(typeof pasted.graph.nodes)[string]>;
+    const minX = Math.min(...pastedNodes.map((node) => node.x));
+    const minY = Math.min(...pastedNodes.map((node) => node.y));
+    expect(minX).toBe(720);
+    expect(minY).toBe(757);
+
+    const originalIds = new Set([...selected.order, ...selected.edgeOrder, ...Object.keys(selected.pins)]);
+    const pastedIds = new Set([
+      ...pasted.pastedNodeIds,
+      ...pasted.graph.edgeOrder.filter((id) => !selected.edgeOrder.includes(id)),
+      ...Object.keys(pasted.graph.pins).filter((id) => !Object.keys(selected.pins).includes(id))
+    ]);
+    const overlap = [...pastedIds].filter((id) => originalIds.has(id));
+    expect(overlap).toEqual([]);
   });
 
   it("adds and removes pins", () => {

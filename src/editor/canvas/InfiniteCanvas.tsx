@@ -27,6 +27,7 @@ type InfiniteCanvasProps = {
   resolvedNavigationMode: ResolvedNavigationMode;
   onResolveNavigationMode: (mode: Exclude<ResolvedNavigationMode, null>) => void;
   onConnectError: (message: string) => void;
+  onCanvasPointerWorldChange: (worldX: number, worldY: number) => void;
   onRequestNodePicker: (request: {
     worldX: number;
     worldY: number;
@@ -41,6 +42,7 @@ export function InfiniteCanvas({
   resolvedNavigationMode,
   onResolveNavigationMode,
   onConnectError,
+  onCanvasPointerWorldChange,
   onRequestNodePicker
 }: InfiniteCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -329,10 +331,21 @@ export function InfiniteCanvas({
     };
 
     const onMouseUp = (event: MouseEvent) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (
+        rect &&
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      ) {
+        const world = screenToWorld(event.clientX - rect.left, event.clientY - rect.top, viewport);
+        onCanvasPointerWorldChange(world.x, world.y);
+      }
+
       const pendingRightClick = pendingRightClickRef.current;
       if (pendingRightClick) {
         pendingRightClickRef.current = null;
-        const rect = canvasRef.current?.getBoundingClientRect();
         if (rect) {
           onRequestNodePicker(
             {
@@ -391,7 +404,16 @@ export function InfiniteCanvas({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [dragState, endHistoryTransaction, moveSelectionBy, onRequestNodePicker, panBy, setSelectionByMarquee, viewport]);
+  }, [
+    dragState,
+    endHistoryTransaction,
+    moveSelectionBy,
+    onCanvasPointerWorldChange,
+    onRequestNodePicker,
+    panBy,
+    setSelectionByMarquee,
+    viewport
+  ]);
 
   const startPan = useCallback((clientX: number, clientY: number) => {
     setDragState({ mode: "panning", lastClientX: clientX, lastClientY: clientY });
@@ -399,6 +421,14 @@ export function InfiniteCanvas({
 
   const onCanvasMouseDown = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+        const world = screenToWorld(localX, localY, viewport);
+        onCanvasPointerWorldChange(world.x, world.y);
+      }
+
       if (
         event.button === 2
       ) {
@@ -406,7 +436,6 @@ export function InfiniteCanvas({
         if (navigationMode === "auto" && !resolvedNavigationMode) {
           onResolveNavigationMode("mouse");
         }
-        const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) {
           return;
         }
@@ -433,7 +462,6 @@ export function InfiniteCanvas({
       }
 
       if (event.button === 0 && !spaceHeld) {
-        const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) {
           return;
         }
@@ -462,6 +490,7 @@ export function InfiniteCanvas({
       clearSelection,
       effectiveNavigationMode,
       navigationMode,
+      onCanvasPointerWorldChange,
       onResolveNavigationMode,
       resolvedNavigationMode,
       spaceHeld,
@@ -663,6 +692,16 @@ export function InfiniteCanvas({
       ref={canvasRef}
       tabIndex={-1}
       onMouseDown={onCanvasMouseDown}
+      onMouseMove={(event) => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) {
+          return;
+        }
+        const localX = event.clientX - rect.left;
+        const localY = event.clientY - rect.top;
+        const world = screenToWorld(localX, localY, viewport);
+        onCanvasPointerWorldChange(world.x, world.y);
+      }}
       onDoubleClick={onCanvasDoubleClick}
       onWheel={onCanvasWheel}
       onContextMenu={(event) => {

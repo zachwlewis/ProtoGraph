@@ -13,6 +13,7 @@ Offline-first web app for quickly mocking up node graph screenshots.
 - Node graph editing:
   - Add nodes from canvas node picker or double-click
   - Drag, multi-select, marquee select
+  - Copy/paste selected nodes via system clipboard (works across graphs and text roundtrip)
   - Connect wires, select/delete edges
   - Inline node title + pin label editing
   - Pin add/remove/reorder from inspector
@@ -95,6 +96,9 @@ npm run build
 - `Shift + Cmd/Ctrl + Z` or `Ctrl + Y`: redo
 - `Delete` / `Backspace`: delete selected node/edge
 - `Ctrl/Cmd + D`: duplicate selected node(s)
+- `Ctrl/Cmd + X`: cut selected node(s)
+- `Ctrl/Cmd + C`: copy selected node(s)
+- `Ctrl/Cmd + V`: paste clipboard selection
 - `Shift + Click`: toggle node in selection
 - `Space + Drag`: pan fallback
 - Mouse mode: `Mouse Wheel` zoom, right-drag pan

@@ -4,12 +4,15 @@ import type {
   ConnectResult,
   DistributeAxis,
   SelectionMode,
+  WorldPoint,
   WorldRect
 } from "../model/graphMutations";
+import type { ProtoGraphClipboardPayloadV1 } from "../model/clipboard";
 import type { GraphModel, PinColor, PinDirection, PinShape } from "../model/types";
 import {
   alignSelection,
   addPinToNode,
+  pasteClipboardPayload as pasteClipboardPayloadMutation,
   clearSelection,
   connectPins,
   createNode,
@@ -68,6 +71,10 @@ type GraphActions = {
   clearSelection: () => void;
   deleteSelection: () => void;
   duplicateSelection: () => void;
+  pasteClipboardPayload: (
+    payload: ProtoGraphClipboardPayloadV1,
+    anchor?: WorldPoint | null
+  ) => { pastedNodeIds: string[] };
   moveSelectionBy: (dx: number, dy: number) => void;
   alignSelection: (kind: AlignKind) => void;
   distributeSelection: (axis: DistributeAxis) => void;
@@ -290,6 +297,15 @@ export const useGraphStore = create<GraphModel & GraphHistoryState & GraphAction
     clearSelection: () => applyNonUndoable((graph) => clearSelection(graph)),
     deleteSelection: () => applyUndoable((graph) => deleteSelection(graph)),
     duplicateSelection: () => applyUndoable((graph) => duplicateSelectedNodes(graph)),
+    pasteClipboardPayload: (payload, anchor) => {
+      let pastedNodeIds: string[] = [];
+      applyUndoable((graph) => {
+        const result = pasteClipboardPayloadMutation(graph, payload, anchor);
+        pastedNodeIds = result.pastedNodeIds;
+        return result.graph;
+      });
+      return { pastedNodeIds };
+    },
     moveSelectionBy: (dx, dy) => applyUndoable((graph) => moveSelectedNodesBy(graph, dx, dy)),
     alignSelection: (kind) => applyUndoable((graph) => alignSelection(graph, kind)),
     distributeSelection: (axis) => applyUndoable((graph) => distributeSelection(graph, axis)),
